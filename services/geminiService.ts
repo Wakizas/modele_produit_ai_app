@@ -14,6 +14,31 @@ declare const process: {
 // The non-null assertion (!) is safe because App.tsx checks for the key's existence.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
+/**
+ * Performs a quick, lightweight check to see if the API key is valid.
+ * @returns An object with a 'valid' boolean and an optional 'error' message.
+ */
+export async function validateApiKey(): Promise<{ valid: boolean; error: string }> {
+    try {
+        // Use a simple, low-cost model and a minimal prompt for validation.
+        await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: 'test' });
+        return { valid: true, error: '' };
+    } catch (error: any) {
+        console.error("API Key Validation Failed:", error);
+        // Provide a user-friendly error message.
+        let errorMessage = "La clé est invalide ou l'API n'est pas activée. ";
+        if (error.message) {
+            if (error.message.includes('API key not valid')) {
+                errorMessage = "La clé API fournie n'est pas valide. Veuillez la vérifier.";
+            } else if (error.message.includes('permission')) {
+                errorMessage = "Permission refusée. Assurez-vous que l'API Generative Language est activée sur votre projet Google Cloud.";
+            }
+        }
+        return { valid: false, error: errorMessage + "Vérifiez votre clé sur Google AI Studio et assurez-vous que la facturation est activée pour votre projet." };
+    }
+}
+
+
 function fileToGenerativePart(base64: string, mimeType: string) {
   return {
     inlineData: {
