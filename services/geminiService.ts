@@ -1,9 +1,18 @@
 import { GoogleGenAI, Modality } from '@google/genai';
 import { ModelOptions, UploadedImage } from '../types';
 
-// FIX: Aligned with Gemini API guidelines for initialization.
-// The API key must be obtained from `process.env.API_KEY`.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// FIX: Define `process` for browser environments to allow access to environment variables.
+// This avoids TypeScript errors for `process.env` and removes the need for vite/client types.
+declare const process: {
+  env: {
+    API_KEY?: string;
+  };
+};
+
+// FIX: Use process.env.API_KEY to align with Gemini API guidelines.
+// The value is injected at build time by Vite's `define` config.
+// The non-null assertion (!) is safe because App.tsx checks for the key's existence.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
 function fileToGenerativePart(base64: string, mimeType: string) {
   return {

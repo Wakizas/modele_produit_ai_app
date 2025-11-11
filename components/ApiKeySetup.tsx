@@ -45,7 +45,8 @@ const ApiKeySetup: React.FC = () => {
                 <li>Pour <strong>Vercel</strong> : Allez dans <code className="bg-black/50 text-secondary px-1.5 py-0.5 rounded-md">Project Settings &gt; Environment Variables</code>.</li>
              </ul>
              <p className="mt-3 text-gray-400">
-                Dans les deux cas, ajoutez une variable nommée <code className="bg-black/50 text-secondary px-1.5 py-0.5 rounded-md">VITE_API_KEY</code> avec votre clé comme valeur.
+                {/* FIX: Instruct user to set API_KEY instead of VITE_API_KEY to align with guidelines. */}
+                Dans les deux cas, ajoutez une variable nommée <code className="bg-black/50 text-secondary px-1.5 py-0.5 rounded-md">API_KEY</code> avec votre clé comme valeur.
              </p>
         </div>
       </div>
