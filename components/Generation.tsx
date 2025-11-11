@@ -23,7 +23,7 @@ const Generation: React.FC<GenerationProps> = ({ progress }) => {
     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center">
       <h2 className="text-4xl font-bold text-white mb-4">Création du modèle en cours…</h2>
       <p className="text-xl text-gray-300 mb-8">
-        Veuillez patienter, votre avatar porte votre produit avec style 👗✨
+        Veuillez patienter, votre avatar porte votre produit avec style
       </p>
       <div className="w-full max-w-md bg-gray-700 rounded-full h-6 overflow-hidden border-2 border-accent/30 relative">
         <div 

@@ -109,7 +109,7 @@ export default function MainApp() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-dark-bg-start to-dark-bg-end font-sans text-gray-200 antialiased">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         <main>{renderStep()}</main>
       </div>
     </div>

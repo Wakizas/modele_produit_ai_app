@@ -25,7 +25,7 @@ const OptionSelector = <T extends string>({ label, options, selected, onChange }
         <button
           key={option.value}
           onClick={() => onChange(option.value)}
-          className={`px-4 py-2 rounded-xl border-2 transition-all text-sm font-medium
+          className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border-2 transition-all text-sm font-medium
             ${selected === option.value 
               ? 'bg-primary text-white border-primary' 
               : 'bg-gray-700 text-gray-200 border-gray-600 hover:border-accent hover:text-white'
@@ -62,12 +62,15 @@ const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptio
   ];
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <h2 className="text-3xl font-bold text-white mb-2 text-center">Étape 2 : Créez votre modèle virtuel</h2>
       <p className="text-gray-400 mb-6 text-center">Définissez les caractéristiques du modèle qui portera votre produit.</p>
        {error && <p className="text-red-400 text-center mb-4">{error}</p>}
-      <div className="grid md:grid-cols-2 gap-8 items-start">
-        <div className="bg-dark-card/60 p-6 rounded-2xl shadow-lg">
+      
+      <div className="flex flex-col md:flex-row gap-8 lg:gap-12 items-start">
+        
+        {/* Options Panel */}
+        <div className="w-full md:flex-1 bg-dark-card/60 p-4 sm:p-6 rounded-2xl shadow-lg">
           <OptionSelector label="Sexe" options={[{value: 'Femme', label: 'Femme'}, {value: 'Homme', label: 'Homme'}]} selected={modelOptions.sexe} onChange={(v) => handleOptionChange('sexe', v)} />
           <OptionSelector label="Type de peau" options={['claire', 'caramel', 'ébène', 'dorée', 'albâtre'].map(v => ({value: v, label: v}))} selected={modelOptions.typeDePeau} onChange={(v) => handleOptionChange('typeDePeau', v)} />
           <OptionSelector label="Origine ethnique" options={['Afrique de l’Ouest', 'Afrique du Nord', 'Afrique Centrale', 'Afrique de l’Est', 'Afrique Australe'].map(v => ({value: v, label: v}))} selected={modelOptions.origineEthnique} onChange={(v) => handleOptionChange('origineEthnique', v)} />
@@ -95,11 +98,12 @@ const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptio
           <Toggle label="Activer le réalisme maximal" checked={modelOptions.realismeMaximal} onChange={(v) => handleOptionChange('realismeMaximal', v)} />
         </div>
 
-        <div className="flex flex-col items-center space-y-6 sticky top-8">
+        {/* Preview and Action Panel */}
+        <div className="w-full md:w-1/3 space-y-6 md:sticky top-8">
           {productImagePreviews.length > 0 && (
             <div className="w-full">
                 <p className="text-lg font-semibold text-accent mb-2 text-center">Vos Produits</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-dark-card/60 p-2 rounded-xl">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-2 bg-dark-card/60 p-2 rounded-xl">
                  {productImagePreviews.map((preview, index) => (
                     <img key={index} src={preview} alt={`Aperçu produit ${index+1}`} className="w-full rounded-md shadow-lg object-cover aspect-square"/>
                 ))}

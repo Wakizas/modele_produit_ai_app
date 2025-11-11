@@ -1,4 +1,5 @@
 import React from 'react';
+import InstallPWAButton from './InstallPWAButton';
 
 interface AccueilProps {
   onStart: () => void;
@@ -6,11 +7,11 @@ interface AccueilProps {
 
 const Accueil: React.FC<AccueilProps> = ({ onStart }) => {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] text-center">
-      <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
-        Modèle Produit Réaliste 👗
+    <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
+      <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4">
+        Modèle Produit Réaliste
       </h1>
-      <p className="max-w-2xl text-lg md:text-xl text-gray-300 mb-8">
+      <p className="max-w-2xl text-md sm:text-lg md:text-xl text-gray-300 mb-8">
         Générez des photoshoots ultra-réalistes de vos produits portés par des modèles virtuels.
         La solution professionnelle pour les marques et vendeurs africains.
       </p>
@@ -20,6 +21,9 @@ const Accueil: React.FC<AccueilProps> = ({ onStart }) => {
       >
         Commencer maintenant
       </button>
+      <div className="mt-8">
+        <InstallPWAButton />
+      </div>
     </div>
   );
 };

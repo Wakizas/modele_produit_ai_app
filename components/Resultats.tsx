@@ -61,39 +61,39 @@ const Resultats: React.FC<ResultatsProps> = ({ images, caption, onRestart, onBac
     <div className="max-w-6xl mx-auto">
       {lightboxImage && <Lightbox imageUrl={lightboxImage} onClose={() => setLightboxImage(null)} onDownload={() => downloadImage(lightboxImage, images.indexOf(lightboxImage))} />}
       <h2 className="text-4xl font-bold text-white mb-2 text-center">Vos visuels sont prêts 🎉</h2>
-      <p className="text-lg text-gray-400 mb-8 text-center">Survolez une image pour zoomer, ou cliquez pour la voir en grand.</p>
+      <p className="text-lg text-gray-400 mb-8 text-center">Cliquez sur une image pour la voir en grand et la télécharger.</p>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-12">
         {images.map((img, index) => (
           <div key={index} className="bg-dark-card rounded-xl shadow-lg overflow-hidden group cursor-pointer" onClick={() => setLightboxImage(img)}>
             <div className="overflow-hidden aspect-[3/4] relative">
                 <img src={img} alt={`Visuel généré ${index + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <p className="text-white font-semibold">Agrandir</p>
+                    <p className="text-white font-semibold text-center text-sm p-1">Agrandir</p>
                 </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-dark-card/70 p-6 rounded-2xl shadow-lg mb-8">
-        <h3 className="text-2xl font-semibold text-accent mb-4">Légende marketing suggérée :</h3>
+      <div className="bg-dark-card/70 p-4 sm:p-6 rounded-2xl shadow-lg mb-8">
+        <h3 className="text-xl sm:text-2xl font-semibold text-accent mb-4">Légende marketing suggérée :</h3>
         <div className="bg-black/30 p-4 rounded-lg border border-gray-700 relative">
-            <p className="text-gray-200 italic pr-24">"{caption}"</p>
+            <p className="text-gray-200 italic pr-24 text-sm sm:text-base">"{caption}"</p>
             <button onClick={handleCopy} className="absolute top-1/2 -translate-y-1/2 right-2 bg-gray-700 text-white px-3 py-1 text-sm font-semibold rounded-full border border-gray-600 hover:bg-gray-600 transition-colors flex items-center">
                {copied ? <CheckIcon /> : <CopyIcon />} {copied ? 'Copié !' : 'Copier'}
             </button>
         </div>
       </div>
       
-      <div className="flex flex-wrap justify-center gap-4">
-        <button onClick={onBack} className="bg-gray-700 text-gray-200 font-bold py-3 px-6 rounded-xl hover:bg-gray-600 transition-colors">
-            Modifier le modèle
-        </button>
-         <button onClick={handleDownloadAll} className="bg-primary text-white font-bold py-3 px-6 rounded-xl hover:bg-accent transition-colors flex items-center transform hover:scale-105 hover:shadow-glow-accent">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <button onClick={handleDownloadAll} className="w-full sm:w-auto bg-primary text-white font-bold py-3 px-6 rounded-xl hover:bg-accent transition-colors flex items-center justify-center transform hover:scale-105 hover:shadow-glow-accent">
             <DownloadIcon /> Télécharger tout
         </button>
-        <button onClick={onRestart} className="bg-secondary text-black font-bold py-3 px-6 rounded-xl hover:bg-yellow-400 transition-colors">
+         <button onClick={onBack} className="w-full sm:w-auto bg-gray-700 text-gray-200 font-bold py-3 px-6 rounded-xl hover:bg-gray-600 transition-colors">
+            Modifier le modèle
+        </button>
+        <button onClick={onRestart} className="w-full sm:w-auto bg-secondary text-black font-bold py-3 px-6 rounded-xl hover:bg-yellow-400 transition-colors">
             Nouveau projet
         </button>
       </div>
