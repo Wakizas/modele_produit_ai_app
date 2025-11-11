@@ -9,22 +9,32 @@ declare const process: {
   };
 };
 
-// FIX: Use process.env.API_KEY to align with Gemini API guidelines.
-// The value is injected at build time by Vite's `define` config.
-// The non-null assertion (!) is safe because App.tsx checks for the key's existence.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+// Lazily initialize the AI instance to avoid errors when API_KEY is not yet available.
+let ai: GoogleGenAI | undefined;
+
+function getAiInstance(): GoogleGenAI {
+    if (!ai) {
+        if (!process.env.API_KEY) {
+            // This state should not be reachable if the App component correctly guards access.
+            throw new Error("API key is not available for Gemini AI initialization.");
+        }
+        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    }
+    return ai;
+}
 
 // FIX: Add and export validateApiKey function to resolve import error in ApiValidator.tsx.
 export async function validateApiKey(): Promise<{ valid: boolean; error: string }> {
   try {
     // A lightweight call to check if the API key is valid.
-    await ai.models.generateContent({
+    await getAiInstance().models.generateContent({
         model: 'gemini-2.5-flash',
         contents: 'hello'
     });
     return { valid: true, error: '' };
   } catch (e) {
     console.error('API key validation failed:', e);
+    ai = undefined; // Reset on failure
     if (e instanceof Error) {
         return { valid: false, error: e.message };
     }
@@ -89,7 +99,7 @@ async function generateSingleImage(imageParts: any[], options: ModelOptions, pos
   const model = 'gemini-2.5-flash-image';
   const textPart = { text: generateImagePrompt(options, pose) };
 
-  const response = await ai.models.generateContent({
+  const response = await getAiInstance().models.generateContent({
     model,
     contents: { parts: [...imageParts, textPart] },
     config: {
@@ -111,7 +121,7 @@ async function generateMarketingCaption(imageParts: any[], options: ModelOptions
 
   const textPart = { text: prompt };
   
-  const response = await ai.models.generateContent({
+  const response = await getAiInstance().models.generateContent({
     model,
     contents: { parts: [...imageParts, textPart] }
   });

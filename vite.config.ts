@@ -8,9 +8,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
-      },
+      // Inclut les icônes essentielles dans le cache du service worker.
+      // IMPORTANT: Assurez-vous que ces fichiers existent bien dans votre dossier `/public`.
+      includeAssets: ['vite.svg', 'icon-192x192.png', 'icon-512x512.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Modèle Produit Réaliste',
         short_name: 'ModèleProduit',
@@ -35,9 +35,17 @@ export default defineConfig({
             src: 'icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any maskable' // Icône "masquable" pour une meilleure intégration
           }
         ]
+      },
+      workbox: {
+        // Met en cache tous les assets générés par le build pour le fonctionnement hors-ligne
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+      },
+      // Active les fonctionnalités PWA en mode développement pour faciliter les tests
+      devOptions: {
+        enabled: true
       }
     })
   ],
