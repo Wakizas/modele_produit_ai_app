@@ -2,6 +2,7 @@ import { GoogleGenAI, Modality } from '@google/genai';
 import { ModelOptions, UploadedImage } from '../types';
 
 // FIX: Aligned with Gemini API guidelines for initialization.
+// The API key must be obtained from `process.env.API_KEY`.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 function fileToGenerativePart(base64: string, mimeType: string) {

@@ -6,17 +6,10 @@ import SelectModele from './components/SelectModele';
 import Generation from './components/Generation';
 import Resultats from './components/Resultats';
 import { generateImagesAndCaption } from './services/geminiService';
-import ApiKeySetup from './components/ApiKeySetup';
 
 export default function App() {
-  // Affiche un écran de configuration si la clé API n'est pas définie.
-  if (!process.env.API_KEY) {
-    return (
-      <div className="min-h-screen w-full bg-gradient-to-br from-dark-bg-start to-dark-bg-end font-sans text-gray-200 antialiased">
-        <ApiKeySetup />
-      </div>
-    );
-  }
+  // FIX: Removed API key check and setup UI. Per Gemini API guidelines,
+  // the API key must be assumed to be available in the environment via process.env.API_KEY.
 
   const [step, setStep] = useState<AppStep>(AppStep.Accueil);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
