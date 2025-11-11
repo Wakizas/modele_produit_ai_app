@@ -58,24 +58,7 @@ export default function MainApp() {
       setStep(AppStep.Results);
     } catch (err) {
       console.error('Generation failed:', err);
-      let detailedMessage = 'Une erreur inattendue est survenue. Veuillez réessayer.';
-      if (err instanceof Error) {
-          // Extract a more user-friendly message
-          if (err.message.includes('403') || err.message.includes('permission')) {
-               detailedMessage = "Permission refusée. Il est possible que votre clé API n'ait pas accès au modèle de génération d'images ('gemini-2.5-flash-image'). Assurez-vous que l'API est bien activée sur votre projet Google Cloud.";
-          } else if (err.message.includes('400') || err.message.includes('Invalid')) {
-               detailedMessage = `La requête est invalide : ${err.message}. Cela peut être dû à un problème avec l'image téléversée. Essayez une autre image.`;
-          } else if (err.message.includes('API key not valid')) {
-              detailedMessage = "Votre clé API n'est plus valide. Veuillez en générer une nouvelle.";
-          } else if (err.message.includes('Safety')) {
-              detailedMessage = "La génération a été bloquée pour des raisons de sécurité. Veuillez essayer avec une autre image ou modifier les options du modèle.";
-          } else if (err.message.includes('404') || err.message.toLowerCase().includes('not_found')) {
-            detailedMessage = "Le modèle d'IA est introuvable (404 Not Found). Causes possibles : 1) L'API n'est pas encore totalement activée sur votre projet Google (cela peut prendre quelques minutes après la création de la clé). 2) Le modèle n'est pas disponible dans votre région. Veuillez réessayer dans quelques instants.";
-          } else {
-               detailedMessage = err.message; // Default to the actual error message
-          }
-      }
-      setError(`La génération a échoué : ${detailedMessage}`);
+      setError('Une erreur est survenue lors de la génération. Veuillez réessayer.');
       setStep(AppStep.Select); // Go back to selection on error
     } finally {
       setIsGenerating(false);

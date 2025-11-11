@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import ApiKeySetup from './components/ApiKeySetup';
-import ApiValidator from './components/ApiValidator';
+import React from 'react';
 import MainApp from './MainApp';
+import ApiKeySetup from './components/ApiKeySetup';
 
 // FIX: Define `process` for browser environments to allow access to environment variables.
 // This avoids TypeScript errors for `process.env` and removes the need for vite/client types.
@@ -16,12 +15,6 @@ export default function App() {
   // The value is injected at build time by Vite's `define` config.
   if (!process.env.API_KEY) {
     return <ApiKeySetup />;
-  }
-
-  const [isKeyValidated, setIsKeyValidated] = useState(false);
-
-  if (!isKeyValidated) {
-    return <ApiValidator onSuccess={() => setIsKeyValidated(true)} />;
   }
 
   return <MainApp />;
