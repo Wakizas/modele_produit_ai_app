@@ -8,9 +8,16 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // Inclut les icônes essentielles dans le cache du service worker.
+      // Inclut les icônes et captures d'écran dans le cache pour le mode hors-ligne.
       // IMPORTANT: Assurez-vous que ces fichiers existent bien dans votre dossier `/public`.
-      includeAssets: ['vite.svg', 'icon-192x192.png', 'icon-512x512.png', 'apple-touch-icon.png'],
+      includeAssets: [
+        'vite.svg', 
+        'icon-192x192.png', 
+        'icon-512x512.png', 
+        'apple-touch-icon.png',
+        'screenshot-1.png',
+        'screenshot-2.png',
+      ],
       manifest: {
         name: 'Modèle Virtuel - Mise en Valeur Produit',
         short_name: 'Modèle Virtuel',
@@ -20,6 +27,33 @@ export default defineConfig({
         display: 'standalone',
         scope: '/',
         start_url: '/',
+        orientation: 'portrait',
+        categories: ['business', 'photo', 'design', 'shopping'],
+        shortcuts: [
+          {
+            name: 'Commencer une nouvelle génération',
+            short_name: 'Nouveau',
+            description: 'Lancer un nouveau projet de modèle virtuel',
+            url: '/',
+            icons: [{ src: 'icon-192x192.png', sizes: '192x192' }]
+          }
+        ],
+        screenshots: [
+          {
+            src: 'screenshot-1.png',
+            sizes: '1080x1920',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Étape de téléversement et de personnalisation du modèle'
+          },
+          {
+            src: 'screenshot-2.png',
+            sizes: '1080x1920',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Affichage des résultats de la génération'
+          }
+        ],
         icons: [
           {
             src: 'icon-192x192.png',
@@ -29,6 +63,11 @@ export default defineConfig({
           {
             src: 'icon-512x512.png',
             sizes: '512x512',
+            type: 'image/png'
+          },
+           {
+            src: 'apple-touch-icon.png',
+            sizes: '180x180',
             type: 'image/png'
           },
           {

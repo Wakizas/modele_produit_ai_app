@@ -3,8 +3,6 @@ import React, { useState, useRef } from 'react';
 interface ResultatsProps {
   images: string[];
   caption: string;
-  onRestart: () => void;
-  onBack: () => void;
 }
 
 const CopyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>;
@@ -44,7 +42,7 @@ const Lightbox: React.FC<{ imageUrl: string; onClose: () => void; onDownload: ()
 };
 
 
-const Resultats: React.FC<ResultatsProps> = ({ images, caption, onRestart, onBack }) => {
+const Resultats: React.FC<ResultatsProps> = ({ images, caption }) => {
     const [copied, setCopied] = useState(false);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
@@ -106,12 +104,6 @@ const Resultats: React.FC<ResultatsProps> = ({ images, caption, onRestart, onBac
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
         <button onClick={handleDownloadAll} className="w-full sm:w-auto bg-primary text-white font-bold py-3 px-6 rounded-xl hover:bg-accent transition-colors flex items-center justify-center transform hover:scale-105 hover:shadow-glow-accent">
             <DownloadIcon /> Télécharger tout
-        </button>
-         <button onClick={onBack} className="w-full sm:w-auto bg-gray-700 text-gray-200 font-bold py-3 px-6 rounded-xl hover:bg-gray-600 transition-colors">
-            Modifier le modèle
-        </button>
-        <button onClick={onRestart} className="w-full sm:w-auto bg-secondary text-black font-bold py-3 px-6 rounded-xl hover:bg-yellow-400 transition-colors">
-            Nouvelle simulation
         </button>
       </div>
     </div>

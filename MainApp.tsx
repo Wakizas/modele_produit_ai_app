@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { AppStep, ModelOptions, UploadedImage } from './types';
 import Accueil from './components/Accueil';
 import UploadProduit from './components/UploadProduit';
 import SelectModele from './components/SelectModele';
 import Generation from './components/Generation';
 import Resultats from './components/Resultats';
+import Header from './components/Header';
 import { generateImagesAndCaption } from './services/geminiService';
 
 export default function MainApp() {
@@ -23,10 +24,12 @@ export default function MainApp() {
     useMyFace: false,
   });
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [partiallyGeneratedImages, setPartiallyGeneratedImages] = useState<(string | null)[]>([]);
   const [marketingCaption, setMarketingCaption] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  const isGenerationCancelled = useRef(false);
 
   const handleStart = useCallback(() => {
     setStep(AppStep.Upload);
@@ -37,8 +40,25 @@ export default function MainApp() {
     setStep(AppStep.Select);
   }, []);
   
-  const handleBackToSelect = useCallback(() => {
+  const handleGoBack = useCallback(() => {
+    switch (step) {
+      case AppStep.Upload:
+        setStep(AppStep.Accueil);
+        break;
+      case AppStep.Select:
+        setStep(AppStep.Upload);
+        if (error) setError('');
+        break;
+      case AppStep.Results:
+        setStep(AppStep.Select);
+        break;
+    }
+  }, [step, error]);
+
+  const handleCancelGeneration = useCallback(() => {
+    isGenerationCancelled.current = true;
     setStep(AppStep.Select);
+    setIsGenerating(false);
   }, []);
 
   const handleGenerate = useCallback(async () => {
@@ -50,19 +70,35 @@ export default function MainApp() {
         setError("Veuillez téléverser une photo de votre visage pour utiliser cette option.");
         return;
     }
+    isGenerationCancelled.current = false;
     setGenerationProgress(0);
+    setPartiallyGeneratedImages(Array(4).fill(null));
     setStep(AppStep.Generate);
     setError('');
     setIsGenerating(true);
     try {
-      const { images, caption } = await generateImagesAndCaption(uploadedImages, modelOptions, setGenerationProgress, faceImage);
+      const onImageGenerated = (image: string, index: number) => {
+        setPartiallyGeneratedImages(prev => {
+            const newImages = [...prev];
+            newImages[index] = image;
+            return newImages;
+        });
+      };
+        
+      const { images, caption } = await generateImagesAndCaption(uploadedImages, modelOptions, setGenerationProgress, onImageGenerated, faceImage);
+      
+      if (isGenerationCancelled.current) { return; }
+
       setGeneratedImages(images);
       setMarketingCaption(caption);
       // Attendre un instant pour que l'utilisateur voie le message de fin
       setTimeout(() => {
-        setStep(AppStep.Results);
+        if (!isGenerationCancelled.current) {
+            setStep(AppStep.Results);
+        }
       }, 1500);
     } catch (err) {
+      if (isGenerationCancelled.current) { return; }
       console.error('Generation failed:', err);
       let finalError = 'Une erreur imprévue est survenue. Pas d’inquiétude, recommencez simplement.';
       if (err instanceof Error) {
@@ -83,9 +119,11 @@ export default function MainApp() {
   }, [uploadedImages, modelOptions, faceImage]);
 
   const handleReset = useCallback(() => {
+    isGenerationCancelled.current = false;
     setStep(AppStep.Accueil);
     setUploadedImages([]);
     setGeneratedImages([]);
+    setPartiallyGeneratedImages([]);
     setFaceImage(null);
     setModelOptions(prev => ({ ...prev, useMyFace: false }));
     setMarketingCaption('');
@@ -113,14 +151,12 @@ export default function MainApp() {
           />
         );
       case AppStep.Generate:
-        return <Generation progress={generationProgress} />;
+        return <Generation progress={generationProgress} generatedImages={partiallyGeneratedImages} />;
       case AppStep.Results:
         return (
           <Resultats
             images={generatedImages}
             caption={marketingCaption}
-            onRestart={handleReset}
-            onBack={handleBackToSelect}
           />
         );
       default:
@@ -131,6 +167,11 @@ export default function MainApp() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-dark-bg-start to-dark-bg-end font-sans text-gray-200 antialiased">
       <div className="container mx-auto px-4 py-6 sm:py-8">
+        <Header 
+            step={step} 
+            onGoBack={step === AppStep.Generate ? handleCancelGeneration : handleGoBack} 
+            onGoHome={handleReset} 
+        />
         <main>{renderStep()}</main>
       </div>
     </div>

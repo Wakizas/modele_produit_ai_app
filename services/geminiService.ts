@@ -56,33 +56,32 @@ const generateImagePrompt = (options: ModelOptions, pose: string): string => {
   const formatInstruction = "L'image doit être au format PNG haute définition avec une résolution de 1024x1024 pixels. La composition doit être adaptée à ce format carré.";
 
   if (options.useMyFace) {
-    return `MISSION : CRÉER UN VISUEL PRODUIT PROFESSIONNEL AVEC UN VISAGE SPÉCIFIQUE.
-    
-1. ANALYSE DES IMAGES : Tu as deux types d'images en entrée :
-   - IMAGE PRODUIT : contient le(s) vêtement(s) ou accessoire(s) à mettre en scène.
-   - IMAGE VISAGE : contient le visage d'une personne réelle que tu dois utiliser.
+    return `PRIORITÉ ABSOLUE : REPRODUCTION FACIALE EXACTE POUR VISUEL PRODUIT.
 
-2. OBJECTIF PRINCIPAL : Intègre le(s) produit(s) sur un modèle photoréaliste dont le **visage est une REPRODUCTION EXACTE de celui de l'IMAGE VISAGE**.
+ANALYSE DES ENTRÉES :
+- IMAGES PRODUIT : Toutes les images sauf la dernière. Contiennent le vêtement/accessoire.
+- IMAGE VISAGE DE RÉFÉRENCE : C'est la TOUTE DERNIÈRE image fournie. Elle est la source unique et obligatoire pour le visage du modèle.
 
-3. RÈGLES STRICTES POUR LE VISAGE (NON-NÉGOCIABLES) :
-   - Le visage du modèle généré doit être **IDENTIQUE** à celui de la personne sur l'IMAGE VISAGE.
-   - Respecte scrupuleusement les traits du visage, la forme des yeux, du nez, de la bouche, et le teint de la peau.
-   - La ressemblance doit être parfaite. Si le visage fourni est de mauvaise qualité, reconstitue les traits de manière fidèle mais lissée, sans exagération.
+MISSION PRINCIPALE (NON NÉGOCIABLE) :
+Tu dois générer une photo de mannequin de qualité professionnelle. La règle la plus importante est que le visage du mannequin doit être une **REPRODUCTION IDENTIQUE** du visage de l'IMAGE VISAGE DE RÉFÉRENCE. La ressemblance n'est pas une option, c'est une exigence.
 
-4. RÈGLES POUR LE MODÈLE ET LE PRODUIT :
-   - Le modèle doit porter le(s) produit(s) de l'IMAGE PRODUIT de manière naturelle et cohérente.
-   - Morphologie du modèle : ${options.morphologie}.
-   - Style vestimentaire général : ${options.style}.
-   - Pose du modèle : ${pose}. La pose doit être naturelle et mettre en valeur le(s) produit(s).
-   - ADAPTATION DE LA POSE : La pose doit s'adapter aux produits. Si une montre est présente, le poignet doit être visible. Si des chaussures sont fournies, les pieds doivent être dans le cadre.
-   - Éclairage : Professionnel, type studio photo, pour un rendu luxueux.
-   - Arrière-plan : ${options.arrierePlan}. L'arrière-plan doit être esthétique mais ne doit pas détourner l'attention.
+RÈGLES IMPÉRATIVES :
+1.  **FIDÉLITÉ DU VISAGE (PRIORITÉ N°1)** : Le visage généré doit être indiscernable de celui de l'image de référence. Copie chaque détail : forme des yeux, du nez, de la bouche, mâchoire, teint de la peau. NE PAS interpréter ou modifier les traits. C'est une opération de greffe de visage photoréaliste.
+2.  **INTÉGRATION DU PRODUIT** : Le mannequin doit porter le(s) produit(s) de manière naturelle et valorisante.
+3.  **CARACTÉRISTIQUES DU MANNEQUIN** :
+    - Morphologie : ${options.morphologie}
+    - Style général : ${options.style}
+    - Pose : ${pose}. La pose doit être naturelle et adaptée au produit.
+4.  **QUALITÉ TECHNIQUE** :
+    - ${realismePrompt}
+    - ${formatInstruction}
+5.  **ARRIÈRE-PLAN** : ${options.arrierePlan}. Il doit compléter la scène sans distraire.
 
-5. QUALITÉ ET FORMAT :
-   - ${realismePrompt}
-   - ${formatInstruction}
+ÉCHEC DE LA MISSION SI :
+- Le visage du mannequin ne ressemble pas de manière frappante à l'IMAGE VISAGE DE RÉFÉRENCE.
+- Le visage semble générique ou "inspiré de" au lieu d'être une copie.
 
-OBJECTIF FINAL : Produire une image de qualité photographique qui combine le visage de l'IMAGE VISAGE avec le(s) produit(s) de l'IMAGE PRODUIT, en respectant toutes les règles ci-dessus. Le résultat doit être professionnel et commercialement attractif.`;
+Le succès est défini par une image commercialement viable où le produit est bien présenté sur un mannequin dont le visage est la copie conforme de la référence fournie.`;
   }
 
   const basePrompt = `CRÉATION D'UN VISUEL PRODUIT PROFESSIONNEL ULTRA-RÉALISTE.
@@ -178,6 +177,7 @@ export async function generateImagesAndCaption(
   uploadedImages: UploadedImage[],
   options: ModelOptions,
   onProgress: (progress: number) => void,
+  onImageGenerated: (image: string, index: number) => void,
   faceImage: UploadedImage | null
 ) {
   const imageParts = uploadedImages.map(img => fileToGenerativePart(img.base64, img.file.type));
@@ -190,36 +190,32 @@ export async function generateImagesAndCaption(
   onProgress(0);
 
   let completedTasks = 0;
-  // We have 4 poses for images and 1 for the caption.
   const totalTasks = POSES.length + 1;
 
-  // Helper function to wrap promises with progress tracking.
-  const trackProgress = <T>(promise: Promise<T>): Promise<T> => {
-    return promise.then(result => {
-      completedTasks++;
-      // Calculate progress and ensure it doesn't exceed 100.
-      const progress = Math.min(99, Math.round((completedTasks / totalTasks) * 100)); // Stop at 99%
-      onProgress(progress);
-      return result;
-    });
+  const updateProgress = () => {
+    completedTasks++;
+    const progress = Math.min(99, Math.round((completedTasks / totalTasks) * 100));
+    onProgress(progress);
   };
 
-  // Create an array of promises for image generation, each wrapped with progress tracking.
-  const imageGenerationPromises = POSES.map(pose =>
-    trackProgress(generateSingleImageWithRetry(imageParts, options, pose))
+  const imageGenerationPromises = POSES.map((pose, index) =>
+    generateSingleImageWithRetry(imageParts, options, pose).then(image => {
+      onImageGenerated(image, index);
+      updateProgress();
+      return image;
+    })
   );
 
-  // Create a promise for the caption generation, also tracked.
-  const captionPromise = trackProgress(generateMarketingCaption(imageParts, options));
+  const captionPromise = generateMarketingCaption(imageParts, options).then(caption => {
+    updateProgress();
+    return caption;
+  });
 
-  // Await all tasks to complete in parallel.
-  // Promise.all for images ensures we get an array in the correct order.
   const [images, caption] = await Promise.all([
     Promise.all(imageGenerationPromises),
     captionPromise,
   ]);
-
-  // Final progress update to ensure it hits 100%.
+  
   onProgress(100);
 
   return { images, caption };

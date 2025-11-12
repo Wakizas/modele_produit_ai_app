@@ -2,31 +2,51 @@ import React, { useState, useEffect } from 'react';
 
 interface GenerationProps {
   progress: number;
+  generatedImages: (string | null)[];
 }
 
-const Generation: React.FC<GenerationProps> = ({ progress }) => {
+const LoadingSpinner = () => (
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+);
+
+const Generation: React.FC<GenerationProps> = ({ progress, generatedImages }) => {
   const [message, setMessage] = useState("Préparation du studio virtuel…");
 
   useEffect(() => {
-    if (progress < 25) {
-      setMessage("Pose 1 : Création du modèle…");
-    } else if (progress < 50) {
-      setMessage("Pose 2 : Intégration du produit…");
-    } else if (progress < 75) {
-      setMessage("Pose 3 : Ajustement de l'éclairage…");
-    } else if (progress < 100) {
-      setMessage("Pose 4 : Finalisation et rendu ultra-réaliste…");
+    const completedCount = generatedImages.filter(img => img).length;
+    if (progress < 100) {
+        if (completedCount < 4) {
+            setMessage(`Génération de la pose ${completedCount + 1}/4...`);
+        } else {
+            setMessage("Création de la légende marketing...");
+        }
     } else {
       setMessage("Génération terminée ! Préparation de vos visuels…");
     }
-  }, [progress]);
+  }, [progress, generatedImages]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center">
       <h2 className="text-4xl font-bold text-white mb-4">Création en cours…</h2>
-      <p className="text-xl text-gray-300 mb-8">
-        Votre modèle virtuel prend la pose avec votre produit.
+      <p className="text-xl text-gray-300 mb-8 max-w-lg">
+        Votre modèle virtuel prend la pose avec votre produit. Les images apparaîtront ci-dessous dès qu'elles seront prêtes.
       </p>
+
+      <div className="w-full grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 max-w-4xl">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="bg-dark-card rounded-xl shadow-lg overflow-hidden group aspect-[3/4] flex items-center justify-center">
+            {generatedImages[index] ? (
+              <img src={generatedImages[index] as string} alt={`Visuel généré ${index + 1}`} className="w-full h-full object-cover" />
+            ) : (
+              <div className="flex flex-col items-center text-gray-400">
+                <LoadingSpinner />
+                <span className="mt-2 text-sm">Pose {index + 1}</span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
       <div className="w-full max-w-md bg-gray-700 rounded-full h-6 overflow-hidden border-2 border-accent/30 relative">
         <div 
           className="bg-gradient-to-r from-accent to-primary h-full rounded-full transition-all duration-500 ease-out"
