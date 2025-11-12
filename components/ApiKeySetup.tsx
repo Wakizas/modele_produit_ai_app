@@ -1,6 +1,8 @@
 import React from 'react';
 
 const KeyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 mr-3 text-secondary"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>;
+const InfoIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 mr-3 text-yellow-300"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>;
+
 
 const ApiKeySetup: React.FC = () => {
   return (
@@ -26,11 +28,30 @@ const ApiKeySetup: React.FC = () => {
           </div>
         </div>
 
+        <div className="mt-8 mb-8 p-4 bg-yellow-900/20 rounded-lg border border-yellow-500/30">
+            <div className="flex items-center">
+                <InfoIcon />
+                <h2 className="text-xl font-semibold text-yellow-200">Important : Facturation et Niveau Gratuit</h2>
+            </div>
+            <ul className="text-yellow-300/90 mt-2 text-sm space-y-2 list-disc list-inside">
+              <li>
+                <strong className="font-semibold">Niveau Gratuit Inclus :</strong> Votre clé API vous donne accès à un <strong className="font-semibold">quota mensuel gratuit</strong> pour générer du texte et des images. Pour beaucoup d'usages, cela peut suffire.
+              </li>
+              <li>
+                <strong className="font-semibold">Facturation Requise :</strong> Pour activer votre clé et bénéficier du niveau gratuit, un compte de facturation Google Cloud valide est nécessaire. C'est une sécurité, vous ne serez débité que si vous dépassez le quota gratuit.
+              </li>
+              <li>
+                <strong className="font-semibold">Surveillez Votre Usage :</strong> Au-delà du quota gratuit, l'utilisation est payante. Nous vous recommandons de mettre en place des alertes de budget sur votre compte Google Cloud.
+                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="underline hover:text-white ml-1 font-semibold">En savoir plus sur la tarification</a>.
+              </li>
+            </ul>
+        </div>
+
         <a
           href="https://aistudio.google.com/app/apikey"
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-8 w-full bg-primary text-white font-bold py-3 px-8 rounded-xl text-lg shadow-lg hover:bg-accent transition-all duration-300 transform hover:scale-105 hover:shadow-glow-accent flex items-center justify-center"
+          className="w-full bg-primary text-white font-bold py-3 px-8 rounded-xl text-lg shadow-lg hover:bg-accent transition-all duration-300 transform hover:scale-105 hover:shadow-glow-accent flex items-center justify-center"
         >
           Obtenir ma Clé API Gratuite
         </a>

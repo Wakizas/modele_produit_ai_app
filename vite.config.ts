@@ -41,7 +41,10 @@ export default defineConfig({
       },
       workbox: {
         // Met en cache tous les assets générés par le build pour le fonctionnement hors-ligne
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // S'assure que le nouveau service worker prend le contrôle immédiatement
+        skipWaiting: true,
+        clientsClaim: true,
       },
       // Active les fonctionnalités PWA en mode développement pour faciliter les tests
       devOptions: {

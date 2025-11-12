@@ -97,24 +97,44 @@ const POSES = [
   "Adossé à un mur texturé sombre, pose décontractée mais chic."
 ];
 
-async function generateSingleImage(imageParts: any[], options: ModelOptions, pose: string): Promise<string> {
+async function generateSingleImageWithRetry(imageParts: any[], options: ModelOptions, pose: string, maxRetries = 3): Promise<string> {
   const prompt = generateImagePrompt(options, pose);
   const textPart = { text: prompt };
   
-  const response = await getAiInstance().models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: { parts: [...imageParts, textPart] },
-    config: {
-      responseModalities: [Modality.IMAGE],
-    },
-  });
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await getAiInstance().models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: { parts: [...imageParts, textPart] },
+        config: {
+          responseModalities: [Modality.IMAGE],
+        },
+      });
 
-  const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-  if (imagePart && imagePart.inlineData) {
-    return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+      const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (imagePart && imagePart.inlineData) {
+        return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+      }
+      throw new Error('Aucune image n\'a été générée dans la réponse.');
+    } catch (error) {
+      // Check if the error indicates a rate limit/quota issue
+      const isRateLimitError = error instanceof Error && (error.message.includes('429') || error.message.toLowerCase().includes('quota'));
+
+      if (isRateLimitError && attempt < maxRetries - 1) {
+        // Exponential backoff: wait 2s, then 4s, etc. before retrying
+        const delay = Math.pow(2, attempt + 1) * 1000;
+        console.warn(`Rate limit hit. Retrying in ${delay / 1000}s... (Attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        // If it's not a rate limit error or we've exhausted retries, throw the error
+        throw error;
+      }
+    }
   }
-  throw new Error('Aucune image n\'a été générée.');
+  
+  throw new Error('Échec de la génération de l\'image après plusieurs tentatives.');
 }
+
 
 async function generateMarketingCaption(imageParts: any[], options: ModelOptions): Promise<string> {
   const model = 'gemini-2.5-flash';
@@ -133,35 +153,46 @@ async function generateMarketingCaption(imageParts: any[], options: ModelOptions
 }
 
 export async function generateImagesAndCaption(
-  uploadedImages: UploadedImage[], 
+  uploadedImages: UploadedImage[],
   options: ModelOptions,
   onProgress: (progress: number) => void
 ) {
   const imageParts = uploadedImages.map(img => fileToGenerativePart(img.base64, img.file.type));
-  
-  const generatedImages: string[] = [];
+
   onProgress(0);
-  
-  const imageGenerationWeight = 95; // Images take up 95% of the progress bar
 
-  for (let i = 0; i < POSES.length; i++) {
-    const pose = POSES[i];
-    const image = await generateSingleImage(imageParts, options, pose);
-    generatedImages.push(image);
-    
-    const progress = Math.round(((i + 1) / POSES.length) * imageGenerationWeight);
-    onProgress(progress);
-    
-    // Add a 1-second delay between image generation calls to avoid hitting API rate limits.
-    // No need to wait after the last image is generated.
-    if (i < POSES.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-  }
+  let completedTasks = 0;
+  // We have 4 poses for images and 1 for the caption.
+  const totalTasks = POSES.length + 1;
 
-  // Generate caption using the uploaded images for context
-  const caption = await generateMarketingCaption(imageParts, options);
-  onProgress(100); // Final progress update
-  
-  return { images: generatedImages, caption };
+  // Helper function to wrap promises with progress tracking.
+  const trackProgress = <T>(promise: Promise<T>): Promise<T> => {
+    return promise.then(result => {
+      completedTasks++;
+      // Calculate progress and ensure it doesn't exceed 100.
+      const progress = Math.min(100, Math.round((completedTasks / totalTasks) * 100));
+      onProgress(progress);
+      return result;
+    });
+  };
+
+  // Create an array of promises for image generation, each wrapped with progress tracking.
+  const imageGenerationPromises = POSES.map(pose =>
+    trackProgress(generateSingleImageWithRetry(imageParts, options, pose))
+  );
+
+  // Create a promise for the caption generation, also tracked.
+  const captionPromise = trackProgress(generateMarketingCaption(imageParts, options));
+
+  // Await all tasks to complete in parallel.
+  // Promise.all for images ensures we get an array in the correct order.
+  const [images, caption] = await Promise.all([
+    Promise.all(imageGenerationPromises),
+    captionPromise,
+  ]);
+
+  // Final progress update to ensure it hits 100%.
+  onProgress(100);
+
+  return { images, caption };
 }

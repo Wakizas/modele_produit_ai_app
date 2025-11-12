@@ -59,7 +59,14 @@ export default function MainApp() {
       setStep(AppStep.Results);
     } catch (err) {
       console.error('Generation failed:', err);
-      setError('Une erreur est survenue lors de la génération. Veuillez réessayer.');
+      let finalError = 'Une erreur est survenue lors de la génération. Veuillez réessayer.';
+      if (err instanceof Error) {
+          const errorMessage = (err.message || '').toLowerCase();
+          if (errorMessage.includes('quota') || errorMessage.includes('resource_exhausted') || errorMessage.includes('429')) {
+              finalError = "Limite de quota atteinte. L'environnement AI Studio a des limites très strictes. Veuillez patienter un moment avant de réessayer ou utiliser la version déployée qui est plus rapide.";
+          }
+      }
+      setError(finalError);
       setStep(AppStep.Select); // Go back to selection on error
     } finally {
       setIsGenerating(false);
