@@ -8,17 +8,14 @@ export enum AppStep {
 
 export interface ModelOptions {
   sexe: string;
-  typeDePeau: string;
-  morphologie: string;
+  typeDePeau: string; // 'noir', 'clair', 'blanc', 'asiatique', 'métis'
+  morphologie: string; // 'athlétique', 'standard', 'mince', 'enrobée'
   age: string;
-  style: string;
+  style: string; // 'casual', 'professionnel', 'chic', 'traditionnel', 'sportif'
   expression: string;
   origineEthnique: string;
-  realismeMaximal: boolean;
-  outputFormat: string;
-  customWidth: number;
-  customHeight: number;
   arrierePlan: string;
+  useMyFace: boolean;
 }
 
 export interface UploadedImage {

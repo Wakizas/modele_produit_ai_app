@@ -5,27 +5,27 @@ interface GenerationProps {
 }
 
 const Generation: React.FC<GenerationProps> = ({ progress }) => {
-  const [message, setMessage] = useState("Préparation du modèle…");
+  const [message, setMessage] = useState("Préparation du studio virtuel…");
 
   useEffect(() => {
     if (progress < 25) {
-      setMessage("Pose 1 : Préparation du modèle…");
+      setMessage("Pose 1 : Création du modèle…");
     } else if (progress < 50) {
-      setMessage("Pose 2 : Mise en place du produit…");
+      setMessage("Pose 2 : Intégration du produit…");
     } else if (progress < 75) {
-      setMessage("Pose 3 : Ajustement des lumières et des ombres…");
-    } else if (progress < 99) {
-      setMessage("Pose 4 : Finalisation de l’image réaliste…");
+      setMessage("Pose 3 : Ajustement de l'éclairage…");
+    } else if (progress < 100) {
+      setMessage("Pose 4 : Finalisation et rendu ultra-réaliste…");
     } else {
-      setMessage("Création de la légende marketing...");
+      setMessage("Génération terminée ! Préparation de vos visuels…");
     }
   }, [progress]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center">
-      <h2 className="text-4xl font-bold text-white mb-4">Création du modèle en cours…</h2>
+      <h2 className="text-4xl font-bold text-white mb-4">Création en cours…</h2>
       <p className="text-xl text-gray-300 mb-8">
-        Veuillez patienter, votre avatar porte votre produit avec style
+        Votre modèle virtuel prend la pose avec votre produit.
       </p>
       <div className="w-full max-w-md bg-gray-700 rounded-full h-6 overflow-hidden border-2 border-accent/30 relative">
         <div 

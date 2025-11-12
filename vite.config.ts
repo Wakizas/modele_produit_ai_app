@@ -12,8 +12,8 @@ export default defineConfig({
       // IMPORTANT: Assurez-vous que ces fichiers existent bien dans votre dossier `/public`.
       includeAssets: ['vite.svg', 'icon-192x192.png', 'icon-512x512.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Modèle Produit Réaliste',
-        short_name: 'ModèleProduit',
+        name: 'Modèle Virtuel - Mise en Valeur Produit',
+        short_name: 'Modèle Virtuel',
         description: 'Générez des visuels ultra-réalistes de vos produits portés par des modèles virtuels.',
         theme_color: '#7F00FF',
         background_color: '#0D0D0D',

@@ -1,5 +1,7 @@
 {
-  "name": "Modèle Produit Réaliste",
-  "description": "Générez des visuels ultra-réalistes de vos produits portés par des modèles virtuels. Permet de téléverser plusieurs articles et de personnaliser finement le modèle. Conçu pour les vendeurs africains.",
-  "requestFramePermissions": []
+  "name": "Modèle Virtuel - Mise en Valeur Produit",
+  "description": "Générez des visuels ultra-réalistes de vos produits sur des avatars. Capturez ou uploadez vos articles, personnalisez le modèle et obtenez 4 rendus professionnels.",
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

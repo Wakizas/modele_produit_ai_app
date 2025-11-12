@@ -52,24 +52,46 @@ function fileToGenerativePart(base64: string, mimeType: string) {
 }
 
 const generateImagePrompt = (options: ModelOptions, pose: string): string => {
-  const realismePrompt = options.realismeMaximal 
-    ? "QUALITÉ MAXIMALE ACTIVÉE : Le rendu doit être ultra-réaliste, indiscernable d'une vraie photographie de mode professionnelle. Fais attention aux détails de la peau, des cheveux, des tissus et de la lumière."
-    : "QUALITÉ STANDARD : Produis une image de haute qualité, claire et professionnelle.";
+  const realismePrompt = "QUALITÉ MAXIMALE ACTIVÉE : Le rendu doit être ultra-réaliste, indiscernable d'une vraie photographie de mode professionnelle. Fais attention aux détails de la peau, des cheveux, des tissus et de la lumière. Le résultat ne doit pas avoir l'air d'avoir été généré par une IA.";
+  const formatInstruction = "L'image doit être au format PNG haute définition avec une résolution de 1024x1024 pixels. La composition doit être adaptée à ce format carré.";
 
-  let formatInstruction = '';
-  if (options.outputFormat === 'Personnalisé') {
-      formatInstruction = `L'image doit avoir une résolution personnalisée de ${options.customWidth}x${options.customHeight} pixels. La composition doit être adaptée à ce format.`;
-  } else {
-      formatInstruction = `L'image doit avoir un format (aspect ratio) de ${options.outputFormat}. La composition doit être adaptée à ce ratio.`;
+  if (options.useMyFace) {
+    return `MISSION : CRÉER UN VISUEL PRODUIT PROFESSIONNEL AVEC UN VISAGE SPÉCIFIQUE.
+    
+1. ANALYSE DES IMAGES : Tu as deux types d'images en entrée :
+   - IMAGE PRODUIT : contient le(s) vêtement(s) ou accessoire(s) à mettre en scène.
+   - IMAGE VISAGE : contient le visage d'une personne réelle que tu dois utiliser.
+
+2. OBJECTIF PRINCIPAL : Intègre le(s) produit(s) sur un modèle photoréaliste dont le **visage est une REPRODUCTION EXACTE de celui de l'IMAGE VISAGE**.
+
+3. RÈGLES STRICTES POUR LE VISAGE (NON-NÉGOCIABLES) :
+   - Le visage du modèle généré doit être **IDENTIQUE** à celui de la personne sur l'IMAGE VISAGE.
+   - Respecte scrupuleusement les traits du visage, la forme des yeux, du nez, de la bouche, et le teint de la peau.
+   - La ressemblance doit être parfaite. Si le visage fourni est de mauvaise qualité, reconstitue les traits de manière fidèle mais lissée, sans exagération.
+
+4. RÈGLES POUR LE MODÈLE ET LE PRODUIT :
+   - Le modèle doit porter le(s) produit(s) de l'IMAGE PRODUIT de manière naturelle et cohérente.
+   - Morphologie du modèle : ${options.morphologie}.
+   - Style vestimentaire général : ${options.style}.
+   - Pose du modèle : ${pose}. La pose doit être naturelle et mettre en valeur le(s) produit(s).
+   - ADAPTATION DE LA POSE : La pose doit s'adapter aux produits. Si une montre est présente, le poignet doit être visible. Si des chaussures sont fournies, les pieds doivent être dans le cadre.
+   - Éclairage : Professionnel, type studio photo, pour un rendu luxueux.
+   - Arrière-plan : ${options.arrierePlan}. L'arrière-plan doit être esthétique mais ne doit pas détourner l'attention.
+
+5. QUALITÉ ET FORMAT :
+   - ${realismePrompt}
+   - ${formatInstruction}
+
+OBJECTIF FINAL : Produire une image de qualité photographique qui combine le visage de l'IMAGE VISAGE avec le(s) produit(s) de l'IMAGE PRODUIT, en respectant toutes les règles ci-dessus. Le résultat doit être professionnel et commercialement attractif.`;
   }
 
   const basePrompt = `CRÉATION D'UN VISUEL PRODUIT PROFESSIONNEL ULTRA-RÉALISTE.
 CONTEXTE : Une ou plusieurs images de produits sont fournies. Tu dois les mettre en scène sur un modèle photoréaliste.
-MISSION : Intègre le(s) produit(s) des images fournies sur un modèle virtuel. Si plusieurs produits sont fournis (ex: chemise, pantalon, montre), habille le modèle avec tous les articles de manière cohérente et naturelle.
+MISSION : Intègre le(s) produit(s) des images fournies sur un modèle virtuel, en mettant en évidence le produit principal. Si plusieurs produits sont fournis (ex: chemise, pantalon, montre), habille le modèle avec tous les articles de manière cohérente et naturelle.
 
 RÈGLES STRICTES DU MODÈLE (NON-NÉGOCIABLES) : Le modèle doit EXACTEMENT correspondre aux critères suivants :
 - Sexe : ${options.sexe}
-- Type de peau : ${options.typeDePeau}
+- Teinte de peau : ${options.typeDePeau}
 - Origine ethnique : ${options.origineEthnique}. Les traits du visage doivent être authentiques et représentatifs de cette origine.
 - Morphologie : ${options.morphologie}
 - Âge apparent : ${options.age}
@@ -77,7 +99,7 @@ RÈGLES STRICTES DU MODÈLE (NON-NÉGOCIABLES) : Le modèle doit EXACTEMENT corr
 
 INSTRUCTIONS DE STYLE ET DE POSE :
 - Format de Sortie : ${formatInstruction}
-- Style général : ${options.style}.
+- Style vestimentaire : ${options.style}.
 - Pose du modèle : ${pose}. La pose doit être naturelle et mettre en valeur le(s) produit(s).
 - ADAPTATION DE LA POSE : La pose doit s'adapter aux produits. Si une montre est présente, le poignet doit être visible. Si des chaussures sont fournies, les pieds doivent être dans le cadre. Pour une tenue complète, une pose en pied est nécessaire.
 - Éclairage : Professionnel, type studio photo, pour un rendu luxueux.
@@ -155,9 +177,15 @@ async function generateMarketingCaption(imageParts: any[], options: ModelOptions
 export async function generateImagesAndCaption(
   uploadedImages: UploadedImage[],
   options: ModelOptions,
-  onProgress: (progress: number) => void
+  onProgress: (progress: number) => void,
+  faceImage: UploadedImage | null
 ) {
   const imageParts = uploadedImages.map(img => fileToGenerativePart(img.base64, img.file.type));
+
+  if (options.useMyFace && faceImage) {
+      const facePart = fileToGenerativePart(faceImage.base64, faceImage.file.type);
+      imageParts.push(facePart);
+  }
 
   onProgress(0);
 
@@ -170,7 +198,7 @@ export async function generateImagesAndCaption(
     return promise.then(result => {
       completedTasks++;
       // Calculate progress and ensure it doesn't exceed 100.
-      const progress = Math.min(100, Math.round((completedTasks / totalTasks) * 100));
+      const progress = Math.min(99, Math.round((completedTasks / totalTasks) * 100)); // Stop at 99%
       onProgress(progress);
       return result;
     });

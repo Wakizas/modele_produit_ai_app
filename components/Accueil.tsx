@@ -16,11 +16,11 @@ const Accueil: React.FC<AccueilProps> = ({ onStart }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
       <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4">
-        Modèle Produit Réaliste
+        Modèle Virtuel - Mise en Valeur Produit
       </h1>
       <p className="max-w-2xl text-md sm:text-lg md:text-xl text-gray-300 mb-8">
-        Générez des photoshoots ultra-réalistes de vos produits portés par des modèles virtuels.
-        La solution professionnelle pour les marques et vendeurs africains.
+        Créez des photoshoots professionnels pour vos produits sans effort.
+        Notre IA génère des modèles ultra-réalistes pour valoriser vos articles.
       </p>
       <button
         onClick={onStart}

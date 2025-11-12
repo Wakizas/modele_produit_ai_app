@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 interface ResultatsProps {
   images: string[];
@@ -13,15 +13,30 @@ const DownloadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" he
 const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 
 const Lightbox: React.FC<{ imageUrl: string; onClose: () => void; onDownload: () => void; }> = ({ imageUrl, onClose, onDownload }) => {
+    const [scale, setScale] = useState(1);
+    const imgRef = useRef<HTMLImageElement>(null);
+
+    const handleWheel = (e: React.WheelEvent) => {
+        e.preventDefault();
+        const newScale = e.deltaY > 0 ? scale * 0.9 : scale * 1.1;
+        setScale(Math.min(Math.max(0.5, newScale), 5)); // Clamp scale between 0.5x and 5x
+    };
+    
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="relative max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-                <img src={imageUrl} alt="Visuel agrandi" className="w-auto h-auto max-w-full max-h-[80vh] object-contain rounded-lg"/>
-                <button onClick={onClose} className="absolute -top-4 -right-4 bg-white text-black rounded-full p-2 hover:bg-gray-300 transition-colors">
+            <div className="relative max-w-4xl max-h-[90vh] overflow-hidden flex items-center justify-center" onClick={(e) => e.stopPropagation()} onWheel={handleWheel}>
+                <img 
+                    ref={imgRef}
+                    src={imageUrl} 
+                    alt="Visuel agrandi" 
+                    className="w-auto h-auto max-w-full max-h-[80vh] object-contain rounded-lg transition-transform duration-150"
+                    style={{ transform: `scale(${scale})`, cursor: 'zoom-in' }}
+                />
+                <button onClick={onClose} className="absolute -top-4 -right-4 bg-white text-black rounded-full p-2 hover:bg-gray-300 transition-colors z-10">
                     <CloseIcon />
                 </button>
-                 <button onClick={onDownload} className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-primary text-white font-semibold py-2 px-6 rounded-full text-lg hover:bg-accent transition-colors flex items-center shadow-lg hover:shadow-glow-accent">
-                    <DownloadIcon /> Télécharger en PNG HD
+                 <button onClick={onDownload} className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-primary text-white font-semibold py-2 px-6 rounded-full text-lg hover:bg-accent transition-colors flex items-center shadow-lg hover:shadow-glow-accent z-10">
+                    <DownloadIcon /> Télécharger
                 </button>
             </div>
         </div>
@@ -42,7 +57,7 @@ const Resultats: React.FC<ResultatsProps> = ({ images, caption, onRestart, onBac
     const downloadImage = (src: string, index: number) => {
         const link = document.createElement('a');
         link.href = src;
-        link.download = `modele-realiste-${Date.now()}-${index + 1}.png`;
+        link.download = `modele-virtuel-${Date.now()}-${index + 1}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -50,10 +65,9 @@ const Resultats: React.FC<ResultatsProps> = ({ images, caption, onRestart, onBac
     
     const handleDownloadAll = () => {
         images.forEach((img, index) => {
-            // Stagger downloads to prevent browser from blocking them
             setTimeout(() => {
                 downloadImage(img, index);
-            }, index * 300);
+            }, index * 500); // Stagger downloads to prevent browser issues
         });
     };
 
@@ -61,17 +75,20 @@ const Resultats: React.FC<ResultatsProps> = ({ images, caption, onRestart, onBac
     <div className="max-w-6xl mx-auto">
       {lightboxImage && <Lightbox imageUrl={lightboxImage} onClose={() => setLightboxImage(null)} onDownload={() => downloadImage(lightboxImage, images.indexOf(lightboxImage))} />}
       <h2 className="text-4xl font-bold text-white mb-2 text-center">Vos visuels sont prêts 🎉</h2>
-      <p className="text-lg text-gray-400 mb-8 text-center">Cliquez sur une image pour la voir en grand et la télécharger.</p>
+      <p className="text-lg text-gray-400 mb-8 text-center">Cliquez sur une image pour l'agrandir et la télécharger.</p>
       
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-12">
         {images.map((img, index) => (
-          <div key={index} className="bg-dark-card rounded-xl shadow-lg overflow-hidden group cursor-pointer" onClick={() => setLightboxImage(img)}>
-            <div className="overflow-hidden aspect-[3/4] relative">
+          <div key={index} className="bg-dark-card rounded-xl shadow-lg overflow-hidden group">
+            <div className="overflow-hidden aspect-[3/4] relative cursor-pointer" onClick={() => setLightboxImage(img)}>
                 <img src={img} alt={`Visuel généré ${index + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <p className="text-white font-semibold text-center text-sm p-1">Agrandir</p>
                 </div>
             </div>
+             <button onClick={(e) => { e.stopPropagation(); downloadImage(img, index); }} className="w-full bg-gray-700 text-white font-semibold py-2 px-4 hover:bg-primary transition-colors flex items-center justify-center text-sm">
+                <DownloadIcon /> Télécharger
+            </button>
           </div>
         ))}
       </div>
@@ -94,7 +111,7 @@ const Resultats: React.FC<ResultatsProps> = ({ images, caption, onRestart, onBac
             Modifier le modèle
         </button>
         <button onClick={onRestart} className="w-full sm:w-auto bg-secondary text-black font-bold py-3 px-6 rounded-xl hover:bg-yellow-400 transition-colors">
-            Nouveau projet
+            Nouvelle simulation
         </button>
       </div>
     </div>
