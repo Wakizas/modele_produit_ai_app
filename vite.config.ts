@@ -35,19 +35,19 @@ export default defineConfig({
             short_name: 'Nouveau',
             description: 'Lancer un nouveau projet de modèle virtuel',
             url: '/',
-            icons: [{ src: 'icon-192x192.png', sizes: '192x192' }]
+            icons: [{ src: '/icon-192x192.png', sizes: '192x192', type: 'image/png' }]
           }
         ],
         screenshots: [
           {
-            src: 'screenshot-1.png',
+            src: '/screenshot-1.png',
             sizes: '1080x1920',
             type: 'image/png',
             form_factor: 'narrow',
             label: 'Étape de téléversement et de personnalisation du modèle'
           },
           {
-            src: 'screenshot-2.png',
+            src: '/screenshot-2.png',
             sizes: '1080x1920',
             type: 'image/png',
             form_factor: 'narrow',
@@ -56,25 +56,30 @@ export default defineConfig({
         ],
         icons: [
           {
-            src: 'icon-192x192.png',
+            src: '/icon-192x192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'icon-512x512.png',
+            src: '/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png'
           },
            {
-            src: 'apple-touch-icon.png',
+            src: '/apple-touch-icon.png',
             sizes: '180x180',
             type: 'image/png'
           },
           {
-            src: 'icon-512x512.png',
+            src: '/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable' // Icône "masquable" pour une meilleure intégration
+            purpose: 'any maskable'
+          },
+          {
+            src: '/vite.svg',
+            sizes: 'any',
+            type: 'image/svg+xml'
           }
         ]
       },
