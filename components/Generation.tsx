@@ -9,13 +9,15 @@ const Generation: React.FC<GenerationProps> = ({ progress }) => {
 
   useEffect(() => {
     if (progress < 25) {
-      setMessage("Préparation du modèle…");
+      setMessage("Pose 1 : Préparation du modèle…");
     } else if (progress < 50) {
-      setMessage("Mise en place du produit…");
+      setMessage("Pose 2 : Mise en place du produit…");
     } else if (progress < 75) {
-      setMessage("Ajustement des lumières et des ombres…");
+      setMessage("Pose 3 : Ajustement des lumières et des ombres…");
+    } else if (progress < 99) {
+      setMessage("Pose 4 : Finalisation de l’image réaliste…");
     } else {
-      setMessage("Finalisation de l’image réaliste…");
+      setMessage("Création de la légende marketing...");
     }
   }, [progress]);
 

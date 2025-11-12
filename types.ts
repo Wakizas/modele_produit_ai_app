@@ -18,6 +18,7 @@ export interface ModelOptions {
   outputFormat: string;
   customWidth: number;
   customHeight: number;
+  arrierePlan: string;
 }
 
 export interface UploadedImage {

@@ -15,13 +15,14 @@ export default function MainApp() {
     typeDePeau: 'ébène',
     morphologie: 'mince',
     age: 'jeune adulte',
-    style: 'élégant',
+    style: 'professionnel',
     expression: 'sourire léger',
     origineEthnique: 'Afrique de l’Ouest',
     realismeMaximal: true,
     outputFormat: '1:1',
     customWidth: 1024,
     customHeight: 1024,
+    arrierePlan: 'Studio sobre (gris/noir)',
   });
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [marketingCaption, setMarketingCaption] = useState<string>('');

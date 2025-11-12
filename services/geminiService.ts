@@ -63,7 +63,7 @@ const generateImagePrompt = (options: ModelOptions, pose: string): string => {
       formatInstruction = `L'image doit avoir un format (aspect ratio) de ${options.outputFormat}. La composition doit être adaptée à ce ratio.`;
   }
 
-  return `CRÉATION D'UN VISUEL PRODUIT PROFESSIONNEL ULTRA-RÉALISTE.
+  const basePrompt = `CRÉATION D'UN VISUEL PRODUIT PROFESSIONNEL ULTRA-RÉALISTE.
 CONTEXTE : Une ou plusieurs images de produits sont fournies. Tu dois les mettre en scène sur un modèle photoréaliste.
 MISSION : Intègre le(s) produit(s) des images fournies sur un modèle virtuel. Si plusieurs produits sont fournis (ex: chemise, pantalon, montre), habille le modèle avec tous les articles de manière cohérente et naturelle.
 
@@ -81,10 +81,12 @@ INSTRUCTIONS DE STYLE ET DE POSE :
 - Pose du modèle : ${pose}. La pose doit être naturelle et mettre en valeur le(s) produit(s).
 - ADAPTATION DE LA POSE : La pose doit s'adapter aux produits. Si une montre est présente, le poignet doit être visible. Si des chaussures sont fournies, les pieds doivent être dans le cadre. Pour une tenue complète, une pose en pied est nécessaire.
 - Éclairage : Professionnel, type studio photo, pour un rendu luxueux.
-- Arrière-plan : Simple, sombre et flou pour que le produit et le modèle soient le centre de l'attention.
+- Arrière-plan : ${options.arrierePlan}. L'arrière-plan doit être esthétique mais ne doit pas détourner l'attention du modèle et du produit.
 - ${realismePrompt}
 
 OBJECTIF FINAL : Produire une image de qualité photographique, commercialement attractive, qui respecte impérativement toutes les règles ci-dessus. Le(s) produit(s) doi(ven)t être parfaitement intégré(s), sans déformation.`;
+
+  return basePrompt;
 };
 
 
@@ -96,18 +98,17 @@ const POSES = [
 ];
 
 async function generateSingleImage(imageParts: any[], options: ModelOptions, pose: string): Promise<string> {
-  const model = 'gemini-2.5-flash-image';
-  const textPart = { text: generateImagePrompt(options, pose) };
-
+  const prompt = generateImagePrompt(options, pose);
+  const textPart = { text: prompt };
+  
   const response = await getAiInstance().models.generateContent({
-    model,
+    model: 'gemini-2.5-flash-image',
     contents: { parts: [...imageParts, textPart] },
     config: {
       responseModalities: [Modality.IMAGE],
     },
   });
 
-  // FIX: Robustly find the image part instead of assuming it's the first one.
   const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
   if (imagePart && imagePart.inlineData) {
     return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
@@ -117,7 +118,9 @@ async function generateSingleImage(imageParts: any[], options: ModelOptions, pos
 
 async function generateMarketingCaption(imageParts: any[], options: ModelOptions): Promise<string> {
   const model = 'gemini-2.5-flash';
-  const prompt = `Crée une courte légende marketing (1 à 3 phrases), en français, adaptée à une publication Facebook ou Instagram. La légende doit mettre en avant le(s) produit(s) visible(s) sur l'image et le style "${options.style}". Inclus une invitation à l'action. Le ton doit être professionnel, inspirant et adapté à une clientèle africaine moderne.`;
+  const promptContext = "le(s) produit(s) visible(s) sur l'image";
+
+  const prompt = `Crée une courte légende marketing (1 à 3 phrases), en français, adaptée à une publication Facebook ou Instagram. La légende doit mettre en avant ${promptContext} et le style "${options.style}". Inclus une invitation à l'action. Le ton doit être professionnel, inspirant et adapté à une clientèle africaine moderne.`;
 
   const textPart = { text: prompt };
   
@@ -138,17 +141,27 @@ export async function generateImagesAndCaption(
   
   const generatedImages: string[] = [];
   onProgress(0);
+  
+  const imageGenerationWeight = 95; // Images take up 95% of the progress bar
 
   for (let i = 0; i < POSES.length; i++) {
     const pose = POSES[i];
     const image = await generateSingleImage(imageParts, options, pose);
     generatedImages.push(image);
-    const progress = Math.round(((i + 1) / POSES.length) * 100);
+    
+    const progress = Math.round(((i + 1) / POSES.length) * imageGenerationWeight);
     onProgress(progress);
+    
+    // Add a 1-second delay between image generation calls to avoid hitting API rate limits.
+    // No need to wait after the last image is generated.
+    if (i < POSES.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 
   // Generate caption using the uploaded images for context
   const caption = await generateMarketingCaption(imageParts, options);
+  onProgress(100); // Final progress update
   
   return { images: generatedImages, caption };
 }
