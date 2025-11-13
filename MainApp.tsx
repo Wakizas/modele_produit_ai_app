@@ -49,7 +49,15 @@ export default function MainApp() {
         setProductDescription(description);
     } catch (err) {
         console.error("Product detection failed:", err);
-        setError("La détection du produit a échoué. Veuillez décrire le produit manuellement.");
+        let finalError = "La détection du produit a échoué. Veuillez décrire le produit manuellement.";
+        if (err instanceof Error) {
+            if (err.message === 'SAFETY_BLOCK') {
+                finalError = "L'analyse de cette image a été bloquée. Veuillez essayer avec une autre photo du produit.";
+            } else if (err.message === 'RETRY_FAILED') {
+                finalError = "La connexion au service d'analyse est instable. Veuillez vérifier votre connexion internet et réessayer, ou décrivez le produit manuellement.";
+            }
+        }
+        setError(finalError);
         setProductDescription('');
     } finally {
         setIsDetecting(false);

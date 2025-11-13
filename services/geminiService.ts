@@ -51,17 +51,51 @@ function fileToGenerativePart(base64: string, mimeType: string) {
   };
 }
 
-export async function detectProduct(productImages: UploadedImage[]): Promise<string> {
+export async function detectProduct(productImages: UploadedImage[], maxRetries = 3): Promise<string> {
     const imageParts = productImages.map(img => fileToGenerativePart(img.base64, img.file.type));
     const prompt = "Analyse l'image (ou les images) de ce produit e-commerce. Décris le produit principal en une phrase courte et concise (max 15 mots). Sois très spécifique sur l'article, sa couleur et sa matière si possible. Exemples: 'un t-shirt blanc en coton avec un logo noir', 'une montre dorée avec un bracelet en cuir marron', 'une paire de baskets montantes rouges et blanches'. Ne commence pas par 'Ceci est' ou 'L'image montre'.";
     const textPart = { text: prompt };
 
-    const response = await getAiInstance().models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts: [...imageParts, textPart] },
-    });
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const response = await getAiInstance().models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: { parts: [...imageParts, textPart] },
+            });
 
-    return response.text.trim();
+            // The response.text getter will throw an error if generation was blocked.
+            const text = response.text;
+            
+            if (!text || text.trim().length === 0) {
+                console.error('Product detection returned an empty description.');
+                throw new Error('Empty API response');
+            }
+            return text.trim();
+
+        } catch (error) {
+            console.error(`Product detection attempt ${attempt}/${maxRetries} failed:`, error);
+            
+            const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
+
+            // Do not retry on safety errors, fail fast.
+            // The API error for safety blocks often contains 'safety'.
+            if (errorMessage.includes('safety')) {
+                throw new Error('SAFETY_BLOCK');
+            }
+
+            if (attempt < maxRetries) {
+                const delay = Math.pow(2, attempt) * 500 + Math.random() * 500; // shorter delay for a quicker task
+                console.warn(`Retrying product detection in ${Math.round(delay / 1000)}s...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                // After all retries, throw a specific error.
+                throw new Error('RETRY_FAILED');
+            }
+        }
+    }
+    
+    // Fallback error
+    throw new Error('RETRY_FAILED');
 }
 
 const generateImagePrompt = (options: ModelOptions, productDescription: string, pose: string): string => {
