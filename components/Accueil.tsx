@@ -1,5 +1,4 @@
 import React from 'react';
-import InstallPWAButton from './InstallPWAButton';
 
 interface AccueilProps {
   onStart: () => void;
@@ -24,7 +23,6 @@ const Accueil: React.FC<AccueilProps> = ({ onStart }) => {
         Commencer maintenant
       </button>
       <div className="mt-8 space-y-4 w-full max-w-sm flex flex-col items-center">
-        <InstallPWAButton />
         <img
             src="https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
             alt="Personne d'origine africaine interagissant avec une interface d'intelligence artificielle futuriste"
