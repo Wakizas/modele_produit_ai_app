@@ -11,6 +11,7 @@ export default defineConfig({
       // Inclut les icônes et captures d'écran dans le cache pour le mode hors-ligne.
       // IMPORTANT: Assurez-vous que ces fichiers existent bien dans votre dossier `/public`.
       includeAssets: [
+        'favicon.ico',
         'vite.svg', 
         'icon-192x192.png', 
         'icon-512x512.png', 
@@ -21,12 +22,13 @@ export default defineConfig({
       manifest: {
         name: 'AfroVibe Aura Studio',
         short_name: 'Aura Studio',
-        description: 'Libérez le potentiel de vos produits avec des visuels afro-futuristes générés par IA.',
+        description: 'Libérez le potentiel de vos produits avec des visuels afro-futuristes générés par IA. Créez des mannequins virtuels uniques qui incarnent votre marque.',
         theme_color: '#7F00FF',
         background_color: '#0D0D0D',
         display: 'standalone',
         scope: '/',
         start_url: '/',
+        id: '/',
         orientation: 'portrait',
         categories: ['business', 'photo', 'design', 'shopping'],
         shortcuts: [
@@ -58,28 +60,20 @@ export default defineConfig({
           {
             src: '/icon-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/icon-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-           {
-            src: '/apple-touch-icon.png',
-            sizes: '180x180',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
             src: '/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
           },
           {
-            src: '/vite.svg',
-            sizes: 'any',
-            type: 'image/svg+xml'
+            src: '/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       },
