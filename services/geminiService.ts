@@ -22,7 +22,7 @@ export async function detectProduct(productImages: UploadedImage[], maxRetries =
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-2.5-pro', // Utilisation d'un modèle plus robuste pour la détection
                 contents: { parts: [...imageParts, textPart] },
             });
 

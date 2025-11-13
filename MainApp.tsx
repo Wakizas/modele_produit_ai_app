@@ -80,6 +80,12 @@ export default function MainApp() {
     }
   }, []);
   
+  const retryProductAnalysis = useCallback(() => {
+      if (uploadedImages.length > 0) {
+          handleProductAnalysis(uploadedImages);
+      }
+  }, [uploadedImages, handleProductAnalysis]);
+  
   const handleDescriptionValidated = useCallback((finalDescription: string) => {
       setProductDescription(finalDescription);
       setError('');
@@ -194,6 +200,11 @@ export default function MainApp() {
       }
     }
   }, [uploadedImages, modelOptions, faceImage, productDescription]);
+  
+  const retryGeneration = useCallback(() => {
+      setError('');
+      handleGenerate();
+  }, [handleGenerate]);
 
   const handleReset = useCallback(() => {
     isGenerationCancelled.current = false;
@@ -222,6 +233,7 @@ export default function MainApp() {
                   isDetecting={isDetecting}
                   onConfirm={handleDescriptionValidated}
                   error={error}
+                  onRetry={retryProductAnalysis}
                 />;
       case AppStep.Select:
         return (
@@ -234,6 +246,7 @@ export default function MainApp() {
             isGenerating={isGenerating}
             faceImage={faceImage}
             setFaceImage={setFaceImage}
+            onRetry={retryGeneration}
           />
         );
       case AppStep.Generate:

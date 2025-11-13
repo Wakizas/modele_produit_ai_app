@@ -10,6 +10,7 @@ interface SelectModeleProps {
   isGenerating: boolean;
   faceImage: UploadedImage | null;
   setFaceImage: (image: UploadedImage | null) => void;
+  onRetry: () => void;
 }
 
 interface OptionProps<T> {
@@ -222,7 +223,7 @@ const teintesPeau = [
 ];
 
 
-const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptions, onGenerate, productImagePreviews, error, isGenerating, faceImage, setFaceImage }) => {
+const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptions, onGenerate, productImagePreviews, error, isGenerating, faceImage, setFaceImage, onRetry }) => {
   const handleOptionChange = <K extends keyof ModelOptions>(key: K, value: ModelOptions[K]) => {
     setModelOptions((prev) => ({ ...prev, [key]: value }));
   };
@@ -235,11 +236,25 @@ const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptio
       }
   }
 
+  const isRetryableError = error && (error.includes('surchargé') || error.includes('échoué'));
+
   return (
     <div className="max-w-6xl mx-auto">
       <h2 className="text-3xl font-bold text-white mb-2 text-center">Étape 3 : Créez votre modèle virtuel</h2>
       <p className="text-gray-400 mb-6 text-center">Définissez les caractéristiques du modèle qui portera votre produit.</p>
-       {error && <p className="text-red-400 text-center mb-4 bg-red-900/30 p-3 rounded-lg">{error}</p>}
+       {error && (
+            <div className="text-red-400 text-center mb-4 bg-red-900/30 p-3 rounded-lg">
+                <p>{error}</p>
+                {isRetryableError && (
+                    <button
+                        onClick={onRetry}
+                        className="mt-3 bg-secondary text-black font-bold py-2 px-5 rounded-lg text-sm hover:bg-yellow-400 transition-colors"
+                    >
+                        Réessayer la génération
+                    </button>
+                )}
+            </div>
+        )}
       
       <div className="flex flex-col md:flex-row gap-8 lg:gap-12 items-start">
         

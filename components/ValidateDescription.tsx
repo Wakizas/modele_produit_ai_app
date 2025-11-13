@@ -7,6 +7,7 @@ interface ValidateDescriptionProps {
   isDetecting: boolean;
   onConfirm: (description: string) => void;
   error: string;
+  onRetry: () => void;
 }
 
 const LoadingSpinner = () => (
@@ -18,7 +19,8 @@ const ValidateDescription: React.FC<ValidateDescriptionProps> = ({
     initialDescription, 
     isDetecting, 
     onConfirm,
-    error 
+    error,
+    onRetry
 }) => {
   const [description, setDescription] = useState(initialDescription);
 
@@ -31,6 +33,8 @@ const ValidateDescription: React.FC<ValidateDescriptionProps> = ({
           onConfirm(description);
       }
   }
+
+  const isRetryableError = error && (error.includes('surchargé') || error.includes('instable'));
 
   return (
     <div className="flex flex-col items-center max-w-3xl mx-auto">
@@ -64,7 +68,19 @@ const ValidateDescription: React.FC<ValidateDescriptionProps> = ({
                     rows={3}
                     placeholder="Ex: T-shirt noir en coton avec un motif..."
                 />
-                {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+                {error && (
+                    <div className="mt-2 text-sm text-red-400 text-center bg-red-900/20 py-2 px-3 rounded-lg">
+                        <p>{error}</p>
+                        {isRetryableError && (
+                             <button
+                                onClick={onRetry}
+                                className="mt-2 bg-primary text-white font-bold py-1 px-4 rounded-md text-xs hover:bg-accent transition-colors"
+                            >
+                                Réessayer
+                            </button>
+                        )}
+                    </div>
+                )}
                 
                 <button
                     onClick={handleConfirm}
