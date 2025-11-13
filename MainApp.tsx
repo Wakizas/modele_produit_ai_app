@@ -51,10 +51,26 @@ export default function MainApp() {
         console.error("Product detection failed:", err);
         let finalError = "La détection du produit a échoué. Veuillez décrire le produit manuellement.";
         if (err instanceof Error) {
-            if (err.message === 'SAFETY_BLOCK') {
-                finalError = "L'analyse de cette image a été bloquée. Veuillez essayer avec une autre photo du produit.";
-            } else if (err.message === 'RETRY_FAILED') {
-                finalError = "La connexion au service d'analyse est instable. Vérifiez votre connexion et réessayez, ou décrivez le produit manuellement.";
+            switch (err.message) {
+                case 'SAFETY_BLOCK':
+                    finalError = "L'image a été bloquée par nos filtres de sécurité. Essayez une autre photo.";
+                    break;
+                case 'API_KEY_INVALID':
+                    finalError = "Votre clé API n'est pas valide. Veuillez la vérifier.";
+                    break;
+                case 'BILLING_NOT_ENABLED':
+                    finalError = "La facturation n'est pas activée sur votre compte Google. Activez-la pour continuer.";
+                    break;
+                case 'QUOTA_EXCEEDED':
+                case 'MODEL_OVERLOADED':
+                    finalError = "Le service est surchargé en raison d'une forte demande. Veuillez réessayer dans quelques instants.";
+                    break;
+                case 'RETRY_FAILED':
+                    finalError = "La connexion au service est instable. Vérifiez votre connexion internet et réessayez.";
+                    break;
+                default:
+                    finalError = "Une erreur inattendue est survenue. Veuillez décrire le produit manuellement.";
+                    break;
             }
         }
         setError(finalError);
@@ -131,7 +147,7 @@ export default function MainApp() {
 
       // Handle the case where all image generations failed but the promise didn't reject (e.g., Promise.allSettled)
       if (images.length === 0) {
-          throw new Error("Toutes les tentatives de génération d'images ont échoué. Veuillez vérifier les options ou réessayer.");
+          throw new Error("ALL_GENERATIONS_FAILED");
       }
 
       setGeneratedImages(images);
@@ -145,8 +161,31 @@ export default function MainApp() {
     } catch (err) {
       if (isGenerationCancelled.current) { return; }
       console.error('Generation failed:', err);
-      // The error message from the service layer is now user-friendly.
-      const finalError = (err instanceof Error) ? err.message : 'Une erreur imprévue est survenue.';
+      let finalError = 'Une erreur imprévue est survenue lors de la génération.';
+      if (err instanceof Error) {
+          switch (err.message) {
+              case 'SAFETY_BLOCK_GENERATION':
+                  finalError = "La génération a été bloquée. Essayez de modifier les options (style, ambiance) ou la description du produit.";
+                  break;
+              case 'API_KEY_INVALID':
+                  finalError = "Votre clé API n'est pas valide. Veuillez vérifier votre configuration.";
+                  break;
+              case 'BILLING_NOT_ENABLED':
+                  finalError = "La facturation n'est pas activée sur votre compte Google. Activez-la pour pouvoir générer des images.";
+                  break;
+              case 'QUOTA_EXCEEDED':
+              case 'MODEL_OVERLOADED':
+                  finalError = "Le service est actuellement surchargé par une forte demande. Veuillez réessayer dans quelques instants.";
+                  break;
+              case 'RETRY_FAILED_GENERATION':
+              case 'ALL_GENERATIONS_FAILED':
+                  finalError = "Toutes les tentatives de génération d'images ont échoué. Le service rencontre peut-être des difficultés. Veuillez réessayer.";
+                  break;
+              default:
+                  finalError = 'Une erreur inattendue est survenue. Veuillez réessayer.';
+                  break;
+          }
+      }
       setError(finalError);
       setStep(AppStep.Select);
     } finally {

@@ -42,11 +42,25 @@ export async function detectProduct(productImages: UploadedImage[], maxRetries =
             if (errorMessage.includes('safety')) {
                 throw new Error('SAFETY_BLOCK');
             }
+            if (errorMessage.includes('api key not valid')) {
+                throw new Error('API_KEY_INVALID');
+            }
+            if (errorMessage.includes('billing')) {
+                throw new Error('BILLING_NOT_ENABLED');
+            }
+            if (errorMessage.includes('429') || errorMessage.includes('quota')) {
+                throw new Error('QUOTA_EXCEEDED');
+            }
+
+            const isOverloaded = errorMessage.includes('503') || errorMessage.includes('overloaded');
 
             if (attempt < maxRetries) {
                 const delay = Math.pow(2, attempt) * 500 + Math.random() * 500;
                 await new Promise(resolve => setTimeout(resolve, delay));
             } else {
+                if (isOverloaded) {
+                    throw new Error('MODEL_OVERLOADED');
+                }
                 throw new Error('RETRY_FAILED');
             }
         }
@@ -172,7 +186,7 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
         response.candidates[0].finishReason === 'RECITATION'
       ) {
         console.error('Image generation blocked due to safety/recitation.', { finishReason: response.candidates?.[0]?.finishReason, promptFeedback: response.promptFeedback });
-        throw new Error('SAFETY_BLOCK');
+        throw new Error('SAFETY_BLOCK_GENERATION');
       }
 
       const imagePart = response.candidates[0]?.content?.parts?.find(p => p.inlineData);
@@ -185,35 +199,37 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
     } catch (error) {
       console.error(`Attempt ${attempt}/${maxRetries} failed for pose "${pose}":`, error);
       
-      const errorMessage = (error instanceof Error ? error.message : String(error));
+      const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
       
-      if (errorMessage.includes('SAFETY_BLOCK')) {
-          throw new Error("La génération a été bloquée par les filtres de sécurité. Essayez de modifier les options (style, ambiance) ou la description du produit.");
+      if (errorMessage.includes('safety')) {
+          throw new Error('SAFETY_BLOCK_GENERATION');
       }
-
-      // IMPROVED ERROR HANDLING FOR SPECIFIC USER FEEDBACK
-      if (errorMessage.toLowerCase().includes('api key not valid')) {
-           throw new Error("Votre clé API n'est pas valide. Veuillez vérifier votre configuration.");
+      if (errorMessage.includes('api key not valid')) {
+           throw new Error('API_KEY_INVALID');
       }
-      if (errorMessage.toLowerCase().includes('billing')) {
-           throw new Error("Votre projet Google Cloud doit avoir la facturation activée pour utiliser cette fonctionnalité. Veuillez vérifier votre configuration.");
+      if (errorMessage.includes('billing')) {
+           throw new Error('BILLING_NOT_ENABLED');
       }
-       if (errorMessage.includes('429') || errorMessage.toLowerCase().includes('quota')) {
-           throw new Error("Le service est très demandé. Veuillez patienter un moment avant de réessayer.");
+       if (errorMessage.includes('429') || errorMessage.includes('quota')) {
+           throw new Error('QUOTA_EXCEEDED');
       }
-
+      
+      const isOverloaded = errorMessage.includes('503') || errorMessage.includes('overloaded');
 
       if (attempt < maxRetries) {
         const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
         console.warn(`Retrying in ${Math.round(delay / 1000)}s...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
-        throw new Error("Échec de la génération d'image après plusieurs tentatives. Le serveur rencontre peut-être des difficultés.");
+        if (isOverloaded) {
+          throw new Error('MODEL_OVERLOADED');
+        }
+        throw new Error('RETRY_FAILED_GENERATION');
       }
     }
   }
   
-  throw new Error('Échec de la génération de l\'image après plusieurs tentatives.');
+  throw new Error('RETRY_FAILED_GENERATION');
 }
 
 
@@ -238,16 +254,39 @@ async function generateMarketingCaption(imageParts: any[], options: ModelOptions
       return text.trim();
     } catch (error) {
       console.error(`Caption generation attempt ${attempt}/${maxRetries} failed:`, error);
+      
+      const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
+
+      // Non-retryable errors
+      if (errorMessage.includes('safety')) {
+          throw new Error('SAFETY_BLOCK_CAPTION');
+      }
+      if (errorMessage.includes('api key not valid')) {
+           throw new Error('API_KEY_INVALID');
+      }
+      if (errorMessage.includes('billing')) {
+           throw new Error('BILLING_NOT_ENABLED');
+      }
+      
+      const isOverloaded = errorMessage.includes('503') || errorMessage.includes('overloaded');
+      const isQuotaExceeded = errorMessage.includes('429') || errorMessage.includes('quota');
+
       if (attempt < maxRetries) {
         const delay = Math.pow(2, attempt) * 500 + Math.random() * 500;
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
         console.error('Failed to generate marketing caption after retries.');
-        return "Mettez en valeur votre style unique avec ce produit exceptionnel. Disponible dès maintenant sur notre boutique !";
+        if (isOverloaded) {
+          throw new Error('MODEL_OVERLOADED');
+        }
+        if (isQuotaExceeded) {
+          throw new Error('QUOTA_EXCEEDED');
+        }
+        throw new Error('RETRY_FAILED_CAPTION');
       }
     }
   }
-  return "Mettez en valeur votre style unique avec ce produit exceptionnel. Disponible dès maintenant sur notre boutique !";
+  throw new Error('RETRY_FAILED_CAPTION'); // Should not be reached
 }
 
 export async function generateImagesAndCaption(
@@ -305,10 +344,14 @@ export async function generateImagesAndCaption(
   const captionResult = results[totalPoses];
   const caption = captionResult.status === 'fulfilled' ? (captionResult as PromiseFulfilledResult<string>).value : "Découvrez ce produit exceptionnel ! Visitez notre boutique.";
 
+  if (captionResult.status === 'rejected') {
+    console.error("Marketing caption generation failed. Using a default caption. Reason:", captionResult.reason);
+  }
+
   // If all image generations failed, we should throw an error.
   if (successfulImages.length === 0) {
       const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
-      throw firstError?.reason || new Error("Toutes les tentatives de génération d'images ont échoué.");
+      throw firstError?.reason || new Error("ALL_GENERATIONS_FAILED");
   }
   
   onProgress(100);
