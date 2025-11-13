@@ -54,7 +54,7 @@ export default function MainApp() {
             if (err.message === 'SAFETY_BLOCK') {
                 finalError = "L'analyse de cette image a été bloquée. Veuillez essayer avec une autre photo du produit.";
             } else if (err.message === 'RETRY_FAILED') {
-                finalError = "La connexion au service d'analyse est instable. Veuillez vérifier votre connexion internet et réessayer, ou décrivez le produit manuellement.";
+                finalError = "La connexion au service d'analyse est instable. Vérifiez votre connexion et réessayez, ou décrivez le produit manuellement.";
             }
         }
         setError(finalError);
@@ -97,7 +97,7 @@ export default function MainApp() {
 
   const handleGenerate = useCallback(async () => {
     if (uploadedImages.length === 0) {
-      setError('Oups ! Vous devez d’abord sélectionner ou prendre une photo de votre produit.');
+      setError('Vous devez d’abord téléverser une photo de votre produit.');
       return;
     }
     if (modelOptions.useMyFace && !faceImage) {
@@ -106,18 +106,18 @@ export default function MainApp() {
     }
      if (!productDescription.trim()) {
         setError("La description du produit ne peut pas être vide.");
-        // This should not happen if flow is correct, but as a safeguard
         setStep(AppStep.ValidateDescription);
         return;
     }
     isGenerationCancelled.current = false;
     setGenerationProgress(0);
-    setPartiallyGeneratedImages(Array(5).fill(null)); // 5 images now
+    setPartiallyGeneratedImages(Array(5).fill(null));
     setStep(AppStep.Generate);
     setError('');
     setIsGenerating(true);
     try {
       const onImageGenerated = (image: string, index: number) => {
+        if (isGenerationCancelled.current) return;
         setPartiallyGeneratedImages(prev => {
             const newImages = [...prev];
             newImages[index] = image;
@@ -128,6 +128,11 @@ export default function MainApp() {
       const { images, caption } = await generateImagesAndCaption(uploadedImages, modelOptions, productDescription, setGenerationProgress, onImageGenerated, faceImage);
       
       if (isGenerationCancelled.current) { return; }
+
+      // Handle the case where all image generations failed but the promise didn't reject (e.g., Promise.allSettled)
+      if (images.length === 0) {
+          throw new Error("Toutes les tentatives de génération d'images ont échoué. Veuillez vérifier les options ou réessayer.");
+      }
 
       setGeneratedImages(images);
       setMarketingCaption(caption);
@@ -140,27 +145,14 @@ export default function MainApp() {
     } catch (err) {
       if (isGenerationCancelled.current) { return; }
       console.error('Generation failed:', err);
-      let finalError = 'Une erreur imprévue est survenue. Pas d’inquiétude, recommencez simplement.';
-      if (err instanceof Error) {
-          const errorMessage = (err.message || '').toLowerCase();
-          if (errorMessage.includes('sécurité')) {
-               if (modelOptions.useMyFace) {
-                   finalError = "La génération avec votre visage a été bloquée par les filtres de sécurité. Essayez avec une autre photo de visage, mieux éclairée et avec une expression neutre.";
-               } else {
-                   finalError = "La génération d'image a été bloquée. Essayez de changer les options de style, d'ambiance ou la description du produit.";
-               }
-          } else if (errorMessage.includes('quota') || errorMessage.includes('resource_exhausted') || errorMessage.includes('429') || errorMessage.includes('rate limit')) {
-               finalError = "Le serveur est très demandé. Veuillez réessayer dans un instant.";
-          } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || !navigator.onLine) {
-               finalError = "Vérifiez votre connexion internet et relancez la génération.";
-          } else {
-               finalError = "Une erreur est survenue pendant la création du modèle. Veuillez réessayer plus tard.";
-          }
-      }
+      // The error message from the service layer is now user-friendly.
+      const finalError = (err instanceof Error) ? err.message : 'Une erreur imprévue est survenue.';
       setError(finalError);
       setStep(AppStep.Select);
     } finally {
-      setIsGenerating(false);
+      if (!isGenerationCancelled.current) {
+          setIsGenerating(false);
+      }
     }
   }, [uploadedImages, modelOptions, faceImage, productDescription]);
 

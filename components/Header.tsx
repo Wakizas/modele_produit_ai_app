@@ -18,7 +18,6 @@ const CancelIcon = () => (
 );
 
 const Header: React.FC<HeaderProps> = ({ step, onGoBack, onGoHome }) => {
-    // We show the header on these steps for consistency
     if (![AppStep.Upload, AppStep.ValidateDescription, AppStep.Select, AppStep.Generate, AppStep.Results].includes(step)) {
         return null;
     }
@@ -30,6 +29,7 @@ const Header: React.FC<HeaderProps> = ({ step, onGoBack, onGoHome }) => {
             <div className="justify-self-start">
                  <button 
                     onClick={onGoBack} 
+                    aria-label={isGenerating ? 'Annuler la génération' : 'Retourner à l\'étape précédente'}
                     className={`flex items-center transition-colors font-semibold p-2 rounded-lg hover:bg-white/10 ${isGenerating ? 'text-red-400 hover:text-red-300' : 'text-gray-400 hover:text-white'}`}
                 >
                     {isGenerating ? <CancelIcon /> : <BackIcon />}
@@ -37,11 +37,13 @@ const Header: React.FC<HeaderProps> = ({ step, onGoBack, onGoHome }) => {
                 </button>
             </div>
            
-            {/* The title has been removed to only show on the homepage */}
             <div></div>
 
             <div className="justify-self-end flex items-center gap-2">
-                <button onClick={onGoHome} className="flex items-center text-gray-400 hover:text-white transition-colors font-semibold p-2 rounded-lg hover:bg-white/10">
+                <button 
+                    onClick={onGoHome} 
+                    aria-label="Retourner au menu principal"
+                    className="flex items-center text-gray-400 hover:text-white transition-colors font-semibold p-2 rounded-lg hover:bg-white/10">
                     <HomeIcon />
                      <span className="ml-2 hidden sm:inline">Menu principal</span>
                 </button>

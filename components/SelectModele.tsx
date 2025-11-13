@@ -54,6 +54,10 @@ const CameraModal: React.FC<{onClose: () => void, onCapture: (img: UploadedImage
 
     useEffect(() => {
         const startCamera = async () => {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                setError("La fonctionnalité caméra n'est pas supportée par votre navigateur ou votre connexion n'est pas sécurisée (HTTPS).");
+                return;
+            }
             try {
                 // Use 'user' facingMode for selfies
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
@@ -148,7 +152,10 @@ const FaceUploader: React.FC<{ faceImage: UploadedImage | null; setFaceImage: (i
                  <p className="block text-lg font-semibold text-accent mb-2">Votre visage</p>
                 <div className="relative inline-block">
                     <img src={faceImage.previewUrl} alt="Aperçu du visage" className="w-48 h-48 object-cover rounded-full shadow-lg mx-auto" />
-                    <button onClick={() => setFaceImage(null)} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1.5 hover:bg-red-500 transition-colors">
+                    <button 
+                      onClick={() => setFaceImage(null)} 
+                      aria-label="Supprimer la photo du visage"
+                      className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1.5 hover:bg-red-500 transition-colors">
                         <CloseIcon />
                     </button>
                 </div>

@@ -1,46 +1,9 @@
 import { GoogleGenAI, Modality } from '@google/genai';
 import { ModelOptions, UploadedImage } from '../types';
 
-// FIX: Define `process` for browser environments to allow access to environment variables.
-// This avoids TypeScript errors for `process.env` and removes the need for vite/client types.
-declare const process: {
-  env: {
-    API_KEY?: string;
-  };
-};
-
-// Lazily initialize the AI instance to avoid errors when API_KEY is not yet available.
-let ai: GoogleGenAI | undefined;
-
-function getAiInstance(): GoogleGenAI {
-    if (!ai) {
-        if (!process.env.API_KEY) {
-            // This state should not be reachable if the App component correctly guards access.
-            throw new Error("API key is not available for Gemini AI initialization.");
-        }
-        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    }
-    return ai;
-}
-
-// FIX: Add and export validateApiKey function to resolve import error in ApiValidator.tsx.
-export async function validateApiKey(): Promise<{ valid: boolean; error: string }> {
-  try {
-    // A lightweight call to check if the API key is valid.
-    await getAiInstance().models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: 'hello'
-    });
-    return { valid: true, error: '' };
-  } catch (e) {
-    console.error('API key validation failed:', e);
-    ai = undefined; // Reset on failure
-    if (e instanceof Error) {
-        return { valid: false, error: e.message };
-    }
-    return { valid: false, error: 'Une erreur inconnue est survenue lors de la validation.' };
-  }
-}
+// La clé API est garantie d'être présente par la configuration de Vite (define)
+// qui la récupère depuis les variables d'environnement du build (ex: Netlify).
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
 function fileToGenerativePart(base64: string, mimeType: string) {
   return {
@@ -58,12 +21,11 @@ export async function detectProduct(productImages: UploadedImage[], maxRetries =
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            const response = await getAiInstance().models.generateContent({
+            const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: { parts: [...imageParts, textPart] },
             });
 
-            // The response.text getter will throw an error if generation was blocked.
             const text = response.text;
             
             if (!text || text.trim().length === 0) {
@@ -77,86 +39,74 @@ export async function detectProduct(productImages: UploadedImage[], maxRetries =
             
             const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
 
-            // Do not retry on safety errors, fail fast.
-            // The API error for safety blocks often contains 'safety'.
             if (errorMessage.includes('safety')) {
                 throw new Error('SAFETY_BLOCK');
             }
 
             if (attempt < maxRetries) {
-                const delay = Math.pow(2, attempt) * 500 + Math.random() * 500; // shorter delay for a quicker task
-                console.warn(`Retrying product detection in ${Math.round(delay / 1000)}s...`);
+                const delay = Math.pow(2, attempt) * 500 + Math.random() * 500;
                 await new Promise(resolve => setTimeout(resolve, delay));
             } else {
-                // After all retries, throw a specific error.
                 throw new Error('RETRY_FAILED');
             }
         }
     }
     
-    // Fallback error
     throw new Error('RETRY_FAILED');
 }
 
+// REFACTORED AND SIMPLIFIED PROMPT FOR BETTER RELIABILITY
 const generateImagePrompt = (options: ModelOptions, productDescription: string, pose: string): string => {
-  const realismePrompt = "QUALITÉ MAXIMALE ACTIVÉE : Le rendu doit être ultra-réaliste, indiscernable d'une vraie photographie de mode professionnelle. Fais attention aux détails de la peau, des cheveux, des tissus et de la lumière. Le résultat ne doit pas avoir l'air d'avoir été généré par une IA.";
-  const formatInstruction = "L'image doit être au format PNG haute définition avec une résolution de 1024x1024 pixels. La composition doit être adaptée à ce format carré.";
+  const qualityPrompt = "Rendu ultra-réaliste, qualité photo professionnelle (8K). Attention aux détails de la peau, des textures de tissu et à un éclairage naturel. Le résultat ne doit pas avoir l'air artificiel.";
 
   if (options.useMyFace) {
-    return `MISSION : INCRUSTATION FACIALE PHOTORÉALISTE SUR UN MANNEQUIN VIRTUEL.
+    return `
+Prompt: Crée une image photoréaliste d'un mannequin avec les caractéristiques suivantes, intégrant un produit et un visage spécifique à partir des images fournies.
 
-**INPUTS FOURNIS :**
-1.  **Images du Produit :** Les premières images. Produit à mettre en avant : "${productDescription}".
-2.  **Image de Référence du Visage :** La **TOUTE DERNIÈRE** image. C'est la source **ABSOLUE** pour le visage.
+**Images Fournies:**
+- Les premières images contiennent le produit à intégrer.
+- La TOUTE DERNIÈRE image est la photo de référence pour le visage.
 
-**DIRECTIVES CRITIQUES (ORDRE DE PRIORITÉ) :**
+**Instructions (Par Ordre de Priorité):**
 
-1.  **PRIORITÉ MAXIMALE : CLONAGE DU VISAGE**
-    - **Exigence non négociable :** Le visage du mannequin généré doit être une **copie exacte** de l'Image de Référence du Visage.
-    - **Détails à copier à l'identique :** Forme des yeux, nez, bouche, mâchoire, grain de peau, etc.
-    - **Interdiction :** N'INTERPRÈTE PAS, ne modifie pas, et ne stylise pas le visage. C'est une transplantation faciale. L'échec à reproduire le visage est un échec total de la mission.
+1.  **Visage (Priorité Absolue):** Le visage du mannequin doit être une **copie exacte** de celui de l'image de référence. La forme des yeux, du nez, de la bouche, le grain de peau doivent être identiques. Le teint de la peau du corps entier (cou, mains, etc.) doit correspondre parfaitement à celui du visage.
 
-2.  **COHÉRENCE CORPORELLE TOTALE**
-    - **Teinte de peau :** Le teint de la peau du corps entier du mannequin (cou, mains, bras, etc.) doit **correspondre parfaitement** à celui du visage de référence. Aucune différence ne sera tolérée.
-    - **Âge et origine perçus :** L'apparence du corps doit être cohérente avec l'âge et l'origine ethnique perçus sur le visage.
-    - **Morphologie :** Applique **strictement** la morphologie demandée : **${options.morphologie}**.
+2.  **Mannequin & Produit:**
+    -   **Produit à porter:** "${productDescription}". Il doit être porté de manière naturelle.
+    -   **Morphologie du corps:** ${options.morphologie}.
+    -   **Style général:** ${options.style}.
+    -   **Pose:** "${pose}".
+    -   **Ambiance & Éclairage:** Scène avec une ambiance de "${options.ambiance}". L'éclairage sur le modèle doit être cohérent.
 
-3.  **MISE EN SCÈNE DU PRODUIT**
-    - **Intégration :** Le mannequin doit porter le produit ("${productDescription}") de manière naturelle et crédible.
-    - **Style :** Le style général doit être : **${options.style}**.
-    - **Pose :** Utilise la pose suivante : **"${pose}"**. La pose doit mettre en valeur le produit.
-    - **Ambiance :** L'arrière-plan et l'éclairage doivent correspondre à : **"${options.ambiance}"**. L'éclairage sur le mannequin doit être cohérent avec l'ambiance.
-
-4.  **QUALITÉ TECHNIQUE**
-    - **Réalisme :** ${realismePrompt}
-    - **Format :** ${formatInstruction}
-
-**RÉSUMÉ DE LA MISSION :**
-Génère une image d'un mannequin avec le corps et le style décrits, portant le produit. Ensuite, remplace le visage de ce mannequin par une copie **PARFAITE** du visage de référence fourni, en assurant une cohérence absolue de la teinte de peau sur tout le corps.`;
+3.  **Qualité & Format:**
+    -   **Qualité:** ${qualityPrompt}
+    -   **Format:** Image carrée haute résolution.
+`;
   }
 
-  const basePrompt = `CRÉATION D'UN VISUEL PRODUIT PROFESSIONNEL ULTRA-RÉALISTE.
-CONTEXTE : Le produit à mettre en scène est : "${productDescription}". Tu dois l'intégrer sur un modèle photoréaliste.
-MISSION : Habille le modèle virtuel avec le produit (${productDescription}) de manière naturelle et esthétique.
+  return `
+Prompt: Crée une image photoréaliste de qualité professionnelle d'un mannequin mettant en valeur un produit.
 
-RÈGLES STRICTES DU MODÈLE (NON-NÉGOCIABLES) : Le modèle doit EXACTEMENT correspondre aux critères suivants :
-- Sexe : ${options.sexe}
-- Teinte de peau : ${options.typeDePeau}
-- Origine ethnique : ${options.origineEthnique}. Les traits du visage doivent être authentiques et représentatifs de cette origine.
-- Morphologie : ${options.morphologie}
-- Âge apparent : ${options.age}
-- Expression faciale : ${options.expression}.
+**1. Détails du Mannequin (Obligatoire):**
+-   **Sexe:** ${options.sexe}
+-   **Origine Ethnique:** ${options.origineEthnique} (les traits du visage doivent être authentiques)
+-   **Teinte de peau:** ${options.typeDePeau}
+-   **Âge Apparent:** ${options.age}
+-   **Morphologie:** ${options.morphologie}
+-   **Expression Faciale:** ${options.expression}
 
-INSTRUCTIONS DE STYLE ET DE POSE :
-- Format de Sortie : ${formatInstruction}
-- Style vestimentaire : ${options.style}.
-- Pose du modèle : ${pose}. La pose doit être naturelle et spécifiquement choisie pour mettre en valeur le produit "${productDescription}".
-- Ambiance et Éclairage : ${options.ambiance}. Cette ambiance doit dicter à la fois l'arrière-plan ET l'éclairage de la scène. La lumière sur le modèle doit être cohérente avec l'ambiance choisie.
-- ${realismePrompt}
+**2. Détails du Produit & Style:**
+-   **Produit à porter:** "${productDescription}".
+-   **Style vestimentaire général:** ${options.style}.
 
-OBJECTIF FINAL : Produire une image de qualité photographique, commercialement attractive, qui respecte impérativement toutes les règles ci-dessus. Le produit doit être parfaitement intégré, sans déformation.`;
+**3. Scène & Pose:**
+-   **Pose:** Le mannequin doit adopter la pose suivante: "${pose}". La pose doit mettre en valeur le produit.
+-   **Ambiance & Éclairage:** L'arrière-plan et l'éclairage doivent correspondre à: "${options.ambiance}".
 
-  return basePrompt;
+**4. Qualité Technique:**
+-   **Qualité:** ${qualityPrompt}
+-   **Format:** Image carrée haute résolution.
+`;
 };
 
 
@@ -172,29 +122,21 @@ const POSES_MAPPING: { [key: string]: string[] } = {
         "Gros plan sur le poignet ou la main pour mettre en évidence le bijou, le visage du modèle étant en arrière-plan flou.",
         "Le modèle ajuste son col de chemise ou sa cravate, rendant la montre/bracelet bien visible.",
         "Main posée nonchalamment sur le menton, exposant clairement le produit au poignet.",
-        "Pose où le modèle tient un objet (tasse, livre), montrant le produit en action.",
-        "Bras croisés, mettant en évidence les bijoux sur les deux poignets."
     ],
     'chaussures|baskets|sandales|talons|bottes': [
         "Une jambe croisée sur l'autre en position assise, pour un gros plan sur la chaussure.",
         "Le modèle fait un pas en avant, la caméra étant au niveau du sol pour focaliser sur les chaussures.",
-        "Pose en pied avec un pied légèrement en avant pour montrer le profil de la chaussure.",
         "Adossé à un mur, une jambe pliée, la semelle de la chaussure visible.",
-        "Le modèle en train de lacer une de ses chaussures."
     ],
      'sac|sacoche|cartable|pochette': [
         "Le sac tenu à la main, le bras le long du corps, vue de face.",
         "Le sac porté à l'épaule, le modèle de trois-quarts pour montrer comment il tombe.",
         "Le modèle en train de marcher, le sac en mouvement naturel.",
-        "Gros plan sur le modèle ouvrant le sac ou y cherchant quelque chose.",
-        "Le sac posé sur une surface à côté du modèle assis."
     ],
     'lunettes': [
         "Portrait de face, le modèle ajustant les lunettes sur son nez.",
         "Profil du visage, pour montrer le design des branches des lunettes.",
         "Le modèle regarde au loin, donnant un aspect naturel au port des lunettes.",
-        "Le modèle tenant les lunettes à la main, près du visage.",
-        "Vue de trois-quarts, un léger sourire, mettant en valeur le style des lunettes."
     ]
 };
 
@@ -203,19 +145,19 @@ function getPosesForProduct(productDescription: string): string[] {
     for (const key in POSES_MAPPING) {
         const keywords = key.split('|');
         if (keywords.some(keyword => description.includes(keyword))) {
-            return POSES_MAPPING[key];
+            return POSES_MAPPING[key].slice(0, 5); // Ensure we always get 5
         }
     }
     return POSES_MAPPING['default'];
 }
 
-async function generateSingleImageWithRetry(imageParts: any[], options: ModelOptions, productDescription: string, pose: string, maxRetries = 3): Promise<string> {
+async function generateSingleImageWithRetry(imageParts: any[], options: ModelOptions, productDescription: string, pose: string, maxRetries = 2): Promise<string> {
   const prompt = generateImagePrompt(options, productDescription, pose);
   const textPart = { text: prompt };
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const response = await getAiInstance().models.generateContent({
+      const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: { parts: [...imageParts, textPart] },
         config: {
@@ -230,7 +172,7 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
         response.candidates[0].finishReason === 'RECITATION'
       ) {
         console.error('Image generation blocked due to safety/recitation.', { finishReason: response.candidates?.[0]?.finishReason, promptFeedback: response.promptFeedback });
-        throw new Error('La génération d\'image a été bloquée par les filtres de sécurité.');
+        throw new Error('SAFETY_BLOCK');
       }
 
       const imagePart = response.candidates[0]?.content?.parts?.find(p => p.inlineData);
@@ -239,23 +181,34 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
       }
       
       console.error('No image data in valid response:', response);
-      throw new Error('Aucune image n\'a été générée dans la réponse.');
+      throw new Error('NO_IMAGE_DATA');
     } catch (error) {
-      console.error(`Attempt ${attempt}/${maxRetries} failed:`, error);
+      console.error(`Attempt ${attempt}/${maxRetries} failed for pose "${pose}":`, error);
       
-      const isSafetyError = error instanceof Error && error.message.includes('sécurité');
-      // Do not retry on safety errors, fail fast.
-      if (isSafetyError) {
-          throw error;
+      const errorMessage = (error instanceof Error ? error.message : String(error));
+      
+      if (errorMessage.includes('SAFETY_BLOCK')) {
+          throw new Error("La génération a été bloquée par les filtres de sécurité. Essayez de modifier les options (style, ambiance) ou la description du produit.");
       }
 
+      // IMPROVED ERROR HANDLING FOR SPECIFIC USER FEEDBACK
+      if (errorMessage.toLowerCase().includes('api key not valid')) {
+           throw new Error("Votre clé API n'est pas valide. Veuillez vérifier votre configuration.");
+      }
+      if (errorMessage.toLowerCase().includes('billing')) {
+           throw new Error("Votre projet Google Cloud doit avoir la facturation activée pour utiliser cette fonctionnalité. Veuillez vérifier votre configuration.");
+      }
+       if (errorMessage.includes('429') || errorMessage.toLowerCase().includes('quota')) {
+           throw new Error("Le service est très demandé. Veuillez patienter un moment avant de réessayer.");
+      }
+
+
       if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000; // exponential backoff with jitter
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
         console.warn(`Retrying in ${Math.round(delay / 1000)}s...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
-        // After all retries, throw the original error.
-        throw error;
+        throw new Error("Échec de la génération d'image après plusieurs tentatives. Le serveur rencontre peut-être des difficultés.");
       }
     }
   }
@@ -264,20 +217,37 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
 }
 
 
-async function generateMarketingCaption(imageParts: any[], options: ModelOptions, productDescription: string): Promise<string> {
+async function generateMarketingCaption(imageParts: any[], options: ModelOptions, productDescription: string, maxRetries = 3): Promise<string> {
   const model = 'gemini-2.5-flash';
   const promptContext = `le produit suivant : "${productDescription}"`;
 
-  const prompt = `Crée une courte légende marketing (1 à 3 phrases), en français, adaptée à une publication Facebook ou Instagram. La légende doit mettre en avant ${promptContext} et le style "${options.style}". Inclus une invitation à l'action. Le ton doit être ${options.tonMarketing}, inspirant et adapté à une clientèle africaine moderne.`;
+  const prompt = `Crée une courte légende marketing (2 phrases max), en français, pour une publication Instagram. La légende doit mettre en avant ${promptContext} avec un style "${options.style}". Inclus un appel à l'action. Le ton doit être ${options.tonMarketing}.`;
 
   const textPart = { text: prompt };
   
-  const response = await getAiInstance().models.generateContent({
-    model,
-    contents: { parts: [...imageParts, textPart] }
-  });
-
-  return response.text.trim();
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: { parts: [...imageParts, textPart] }
+      });
+      const text = response.text;
+      if (!text || text.trim().length === 0) {
+        throw new Error('Empty API response for caption');
+      }
+      return text.trim();
+    } catch (error) {
+      console.error(`Caption generation attempt ${attempt}/${maxRetries} failed:`, error);
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 500 + Math.random() * 500;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error('Failed to generate marketing caption after retries.');
+        return "Mettez en valeur votre style unique avec ce produit exceptionnel. Disponible dès maintenant sur notre boutique !";
+      }
+    }
+  }
+  return "Mettez en valeur votre style unique avec ce produit exceptionnel. Disponible dès maintenant sur notre boutique !";
 }
 
 export async function generateImagesAndCaption(
@@ -296,11 +266,12 @@ export async function generateImagesAndCaption(
   }
   
   const POSES = getPosesForProduct(productDescription);
+  const totalPoses = POSES.length;
 
   onProgress(0);
 
   let completedTasks = 0;
-  const totalTasks = POSES.length + 1; // 5 images + 1 caption
+  const totalTasks = totalPoses + 1; // N images + 1 caption
 
   const updateProgress = () => {
     completedTasks++;
@@ -321,12 +292,26 @@ export async function generateImagesAndCaption(
     return caption;
   });
 
-  const [images, caption] = await Promise.all([
-    Promise.all(imageGenerationPromises),
-    captionPromise,
+  // Use Promise.allSettled to continue even if some images fail
+  const results = await Promise.allSettled([
+      ...imageGenerationPromises,
+      captionPromise
   ]);
+
+  const successfulImages = results.slice(0, totalPoses)
+      .filter(r => r.status === 'fulfilled')
+      .map(r => (r as PromiseFulfilledResult<string>).value);
+
+  const captionResult = results[totalPoses];
+  const caption = captionResult.status === 'fulfilled' ? (captionResult as PromiseFulfilledResult<string>).value : "Découvrez ce produit exceptionnel ! Visitez notre boutique.";
+
+  // If all image generations failed, we should throw an error.
+  if (successfulImages.length === 0) {
+      const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
+      throw firstError?.reason || new Error("Toutes les tentatives de génération d'images ont échoué.");
+  }
   
   onProgress(100);
 
-  return { images, caption };
+  return { images: successfulImages, caption };
 }

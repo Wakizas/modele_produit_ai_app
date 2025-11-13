@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UploadedImage } from '../types';
 
@@ -15,6 +16,10 @@ const CameraModal: React.FC<{onClose: () => void, onCapture: (img: UploadedImage
 
     useEffect(() => {
         const startCamera = async () => {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                setError("La fonctionnalité caméra n'est pas supportée par votre navigateur ou votre connexion n'est pas sécurisée (HTTPS).");
+                return;
+            }
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 streamRef.current = stream;
@@ -187,7 +192,10 @@ const UploadProduit: React.FC<{onAnalyseRequest: (images: UploadedImage[]) => vo
               {uploadedImages.map((image, index) => (
                 <div key={index} className="relative aspect-square bg-dark-card rounded-lg overflow-hidden shadow-md">
                   <img src={image.previewUrl} alt={`Aperçu ${index + 1}`} className="w-full h-full object-cover" />
-                  <button onClick={() => removeImage(index)} className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 hover:bg-red-500 transition-colors">
+                  <button 
+                    onClick={() => removeImage(index)} 
+                    aria-label={`Supprimer l'aperçu ${index + 1}`}
+                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 hover:bg-red-500 transition-colors">
                     <CloseIcon/>
                   </button>
                 </div>
