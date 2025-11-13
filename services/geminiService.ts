@@ -15,8 +15,16 @@ function fileToGenerativePart(base64: string, mimeType: string) {
 }
 
 export async function detectProduct(productImages: UploadedImage[], maxRetries = 3): Promise<string> {
-    const imageParts = productImages.map(img => fileToGenerativePart(img.base64, img.file.type));
-    const prompt = "Analyse l'image (ou les images) de ce produit e-commerce. Décris le produit principal en une phrase courte et concise (max 15 mots). Sois très spécifique sur l'article, sa couleur et sa matière si possible. Exemples: 'un t-shirt blanc en coton avec un logo noir', 'une montre dorée avec un bracelet en cuir marron', 'une paire de baskets montantes rouges et blanches'. Ne commence pas par 'Ceci est' ou 'L'image montre'.";
+    if (productImages.length === 0) {
+        throw new Error("No images provided for product detection.");
+    }
+    // RECONSTRUCTION : Pour fiabiliser, on n'utilise que la première image pour la détection.
+    // Les autres images serviront de contexte pour la génération des mannequins.
+    const primaryImage = productImages[0];
+    const imageParts = [fileToGenerativePart(primaryImage.base64, primaryImage.file.type)];
+    
+    // RECONSTRUCTION : Prompt simplifié pour une meilleure robustesse.
+    const prompt = "Décris brièvement et directement le produit principal sur l'image pour un site e-commerce. Exemple : 'T-shirt blanc en coton', 'Baskets rouges montantes'.";
     const textPart = { text: prompt };
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {

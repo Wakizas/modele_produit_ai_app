@@ -206,9 +206,8 @@ export default function MainApp() {
       handleGenerate();
   }, [handleGenerate]);
 
-  const handleReset = useCallback(() => {
+  const resetState = () => {
     isGenerationCancelled.current = false;
-    setStep(AppStep.Accueil);
     setUploadedImages([]);
     setGeneratedImages([]);
     setPartiallyGeneratedImages([]);
@@ -218,6 +217,16 @@ export default function MainApp() {
     setMarketingCaption('');
     setError('');
     setGenerationProgress(0);
+  };
+
+  const handleResetToHome = useCallback(() => {
+    resetState();
+    setStep(AppStep.Accueil);
+  }, []);
+
+  const handleStartNew = useCallback(() => {
+    resetState();
+    setStep(AppStep.Upload);
   }, []);
   
   const renderStep = () => {
@@ -256,6 +265,7 @@ export default function MainApp() {
           <Resultats
             images={generatedImages}
             caption={marketingCaption}
+            onStartNew={handleStartNew}
           />
         );
       default:
@@ -269,7 +279,7 @@ export default function MainApp() {
         <Header 
             step={step} 
             onGoBack={step === AppStep.Generate ? handleCancelGeneration : handleGoBack} 
-            onGoHome={handleReset} 
+            onGoHome={handleResetToHome} 
         />
         <main>{renderStep()}</main>
       </div>
