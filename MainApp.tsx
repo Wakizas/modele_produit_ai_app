@@ -135,12 +135,18 @@ export default function MainApp() {
       let finalError = 'Une erreur imprévue est survenue. Pas d’inquiétude, recommencez simplement.';
       if (err instanceof Error) {
           const errorMessage = (err.message || '').toLowerCase();
-          if (errorMessage.includes('quota') || errorMessage.includes('resource_exhausted') || errorMessage.includes('429') || errorMessage.includes('rate limit')) {
+          if (errorMessage.includes('sécurité')) {
+               if (modelOptions.useMyFace) {
+                   finalError = "La génération avec votre visage a été bloquée par les filtres de sécurité. Essayez avec une autre photo de visage, mieux éclairée et avec une expression neutre.";
+               } else {
+                   finalError = "La génération d'image a été bloquée. Essayez de changer les options de style, d'ambiance ou la description du produit.";
+               }
+          } else if (errorMessage.includes('quota') || errorMessage.includes('resource_exhausted') || errorMessage.includes('429') || errorMessage.includes('rate limit')) {
                finalError = "Le serveur est très demandé. Veuillez réessayer dans un instant.";
           } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || !navigator.onLine) {
                finalError = "Vérifiez votre connexion internet et relancez la génération.";
           } else {
-               finalError = "Une erreur est survenue pendant la création du modèle. Veuillez réessayer dans un instant.";
+               finalError = "Une erreur est survenue pendant la création du modèle. Veuillez réessayer plus tard.";
           }
       }
       setError(finalError);

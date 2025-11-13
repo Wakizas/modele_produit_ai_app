@@ -69,32 +69,36 @@ const generateImagePrompt = (options: ModelOptions, productDescription: string, 
   const formatInstruction = "L'image doit être au format PNG haute définition avec une résolution de 1024x1024 pixels. La composition doit être adaptée à ce format carré.";
 
   if (options.useMyFace) {
-    return `PRIORITÉ ABSOLUE : REPRODUCTION FACIALE EXACTE POUR VISUEL PRODUIT.
+    return `MISSION : INCRUSTATION FACIALE PHOTORÉALISTE SUR UN MANNEQUIN VIRTUEL.
 
-ANALYSE DES ENTRÉES :
-- IMAGES PRODUIT : Toutes les images sauf la dernière. Elles contiennent le produit suivant : ${productDescription}.
-- IMAGE VISAGE DE RÉFÉRENCE : C'est la TOUTE DERNIÈRE image fournie. Elle est la source unique et obligatoire pour le visage du modèle.
+**INPUTS FOURNIS :**
+1.  **Images du Produit :** Les premières images. Produit à mettre en avant : "${productDescription}".
+2.  **Image de Référence du Visage :** La **TOUTE DERNIÈRE** image. C'est la source **ABSOLUE** pour le visage.
 
-MISSION PRINCIPALE (NON NÉGOCIABLE) :
-Tu dois générer une photo de mannequin de qualité professionnelle. La règle la plus importante est que le visage du mannequin doit être une **REPRODUCTION IDENTIQUE** du visage de l'IMAGE VISAGE DE RÉFÉRENCE. La ressemblance n'est pas une option, c'est une exigence.
+**DIRECTIVES CRITIQUES (ORDRE DE PRIORITÉ) :**
 
-RÈGLES IMPÉRATIVES :
-1.  **FIDÉLITÉ DU VISAGE (PRIORITÉ N°1)** : Le visage généré doit être indiscernable de celui de l'image de référence. Copie chaque détail : forme des yeux, du nez, de la bouche, mâchoire, teint de la peau. NE PAS interpréter ou modifier les traits. C'est une opération de greffe de visage photoréaliste.
-2.  **INTÉGRATION DU PRODUIT** : Le mannequin doit porter le produit (${productDescription}) de manière naturelle et valorisante.
-3.  **CARACTÉRISTIQUES DU MANNEQUIN** :
-    - Morphologie : ${options.morphologie}
-    - Style général : ${options.style}
-    - Pose : ${pose}. La pose doit être naturelle et adaptée au produit.
-4.  **QUALITÉ TECHNIQUE** :
-    - ${realismePrompt}
-    - ${formatInstruction}
-5.  **AMBIANCE ET ÉCLAIRAGE** : ${options.ambiance}. Cette ambiance doit dicter à la fois l'arrière-plan ET l'éclairage de la scène. La lumière sur le modèle doit être cohérente avec l'ambiance choisie.
+1.  **PRIORITÉ MAXIMALE : CLONAGE DU VISAGE**
+    - **Exigence non négociable :** Le visage du mannequin généré doit être une **copie exacte** de l'Image de Référence du Visage.
+    - **Détails à copier à l'identique :** Forme des yeux, nez, bouche, mâchoire, grain de peau, etc.
+    - **Interdiction :** N'INTERPRÈTE PAS, ne modifie pas, et ne stylise pas le visage. C'est une transplantation faciale. L'échec à reproduire le visage est un échec total de la mission.
 
-ÉCHEC DE LA MISSION SI :
-- Le visage du mannequin ne ressemble pas de manière frappante à l'IMAGE VISAGE DE RÉFÉRENCE.
-- Le visage semble générique ou "inspiré de" au lieu d'être une copie.
+2.  **COHÉRENCE CORPORELLE TOTALE**
+    - **Teinte de peau :** Le teint de la peau du corps entier du mannequin (cou, mains, bras, etc.) doit **correspondre parfaitement** à celui du visage de référence. Aucune différence ne sera tolérée.
+    - **Âge et origine perçus :** L'apparence du corps doit être cohérente avec l'âge et l'origine ethnique perçus sur le visage.
+    - **Morphologie :** Applique **strictement** la morphologie demandée : **${options.morphologie}**.
 
-Le succès est défini par une image commercialement viable où le produit est bien présenté sur un mannequin dont le visage est la copie conforme de la référence fournie.`;
+3.  **MISE EN SCÈNE DU PRODUIT**
+    - **Intégration :** Le mannequin doit porter le produit ("${productDescription}") de manière naturelle et crédible.
+    - **Style :** Le style général doit être : **${options.style}**.
+    - **Pose :** Utilise la pose suivante : **"${pose}"**. La pose doit mettre en valeur le produit.
+    - **Ambiance :** L'arrière-plan et l'éclairage doivent correspondre à : **"${options.ambiance}"**. L'éclairage sur le mannequin doit être cohérent avec l'ambiance.
+
+4.  **QUALITÉ TECHNIQUE**
+    - **Réalisme :** ${realismePrompt}
+    - **Format :** ${formatInstruction}
+
+**RÉSUMÉ DE LA MISSION :**
+Génère une image d'un mannequin avec le corps et le style décrits, portant le produit. Ensuite, remplace le visage de ce mannequin par une copie **PARFAITE** du visage de référence fourni, en assurant une cohérence absolue de la teinte de peau sur tout le corps.`;
   }
 
   const basePrompt = `CRÉATION D'UN VISUEL PRODUIT PROFESSIONNEL ULTRA-RÉALISTE.
@@ -175,7 +179,7 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
   const prompt = generateImagePrompt(options, productDescription, pose);
   const textPart = { text: prompt };
   
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const response = await getAiInstance().models.generateContent({
         model: 'gemini-2.5-flash-image',
@@ -185,19 +189,38 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
         },
       });
 
-      const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (
+        !response.candidates ||
+        response.candidates.length === 0 ||
+        response.candidates[0].finishReason === 'SAFETY' ||
+        response.candidates[0].finishReason === 'RECITATION'
+      ) {
+        console.error('Image generation blocked due to safety/recitation.', { finishReason: response.candidates?.[0]?.finishReason, promptFeedback: response.promptFeedback });
+        throw new Error('La génération d\'image a été bloquée par les filtres de sécurité.');
+      }
+
+      const imagePart = response.candidates[0]?.content?.parts?.find(p => p.inlineData);
       if (imagePart && imagePart.inlineData) {
         return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
       }
+      
+      console.error('No image data in valid response:', response);
       throw new Error('Aucune image n\'a été générée dans la réponse.');
     } catch (error) {
-      const isRateLimitError = error instanceof Error && (error.message.includes('429') || error.message.toLowerCase().includes('quota'));
+      console.error(`Attempt ${attempt}/${maxRetries} failed:`, error);
+      
+      const isSafetyError = error instanceof Error && error.message.includes('sécurité');
+      // Do not retry on safety errors, fail fast.
+      if (isSafetyError) {
+          throw error;
+      }
 
-      if (isRateLimitError && attempt < maxRetries - 1) {
-        const delay = Math.pow(2, attempt + 1) * 1000;
-        console.warn(`Rate limit hit. Retrying in ${delay / 1000}s... (Attempt ${attempt + 1}/${maxRetries})`);
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000; // exponential backoff with jitter
+        console.warn(`Retrying in ${Math.round(delay / 1000)}s...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
+        // After all retries, throw the original error.
         throw error;
       }
     }
