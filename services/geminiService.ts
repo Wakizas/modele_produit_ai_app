@@ -88,7 +88,7 @@ RÈGLES IMPÉRATIVES :
 4.  **QUALITÉ TECHNIQUE** :
     - ${realismePrompt}
     - ${formatInstruction}
-5.  **ARRIÈRE-PLAN** : ${options.arrierePlan}. Il doit compléter la scène sans distraire.
+5.  **AMBIANCE ET ÉCLAIRAGE** : ${options.ambiance}. Cette ambiance doit dicter à la fois l'arrière-plan ET l'éclairage de la scène. La lumière sur le modèle doit être cohérente avec l'ambiance choisie.
 
 ÉCHEC DE LA MISSION SI :
 - Le visage du mannequin ne ressemble pas de manière frappante à l'IMAGE VISAGE DE RÉFÉRENCE.
@@ -113,8 +113,7 @@ INSTRUCTIONS DE STYLE ET DE POSE :
 - Format de Sortie : ${formatInstruction}
 - Style vestimentaire : ${options.style}.
 - Pose du modèle : ${pose}. La pose doit être naturelle et spécifiquement choisie pour mettre en valeur le produit "${productDescription}".
-- Éclairage : Professionnel, type studio photo, pour un rendu luxueux.
-- Arrière-plan : ${options.arrierePlan}. L'arrière-plan doit être esthétique mais ne doit pas détourner l'attention du modèle et du produit.
+- Ambiance et Éclairage : ${options.ambiance}. Cette ambiance doit dicter à la fois l'arrière-plan ET l'éclairage de la scène. La lumière sur le modèle doit être cohérente avec l'ambiance choisie.
 - ${realismePrompt}
 
 OBJECTIF FINAL : Produire une image de qualité photographique, commercialement attractive, qui respecte impérativement toutes les règles ci-dessus. Le produit doit être parfaitement intégré, sans déformation.`;
@@ -212,7 +211,7 @@ async function generateMarketingCaption(imageParts: any[], options: ModelOptions
   const model = 'gemini-2.5-flash';
   const promptContext = `le produit suivant : "${productDescription}"`;
 
-  const prompt = `Crée une courte légende marketing (1 à 3 phrases), en français, adaptée à une publication Facebook ou Instagram. La légende doit mettre en avant ${promptContext} et le style "${options.style}". Inclus une invitation à l'action. Le ton doit être professionnel, inspirant et adapté à une clientèle africaine moderne.`;
+  const prompt = `Crée une courte légende marketing (1 à 3 phrases), en français, adaptée à une publication Facebook ou Instagram. La légende doit mettre en avant ${promptContext} et le style "${options.style}". Inclus une invitation à l'action. Le ton doit être ${options.tonMarketing}, inspirant et adapté à une clientèle africaine moderne.`;
 
   const textPart = { text: prompt };
   

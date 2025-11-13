@@ -191,13 +191,19 @@ const styles = [
   { value: 'sportif', label: 'Sportif' },
 ];
 
-const arrierePlans = [
-    { value: 'Studio sobre (gris/noir)', label: 'Studio sobre' },
-    { value: 'Mur texturé (béton, brique)', label: 'Mur texturé' },
-    { value: 'Extérieur urbain (flou)', label: 'Extérieur urbain' },
-    { value: 'Nature luxuriante (flou)', label: 'Nature luxuriante' },
-    { value: 'Intérieur minimaliste (loft)', label: 'Intérieur minimaliste' },
-    { value: 'Fond coloré uni (vibrant)', label: 'Fond coloré' }
+const ambiances = [
+    { value: 'Studio sobre (éclairage neutre)', label: 'Studio sobre' },
+    { value: 'Lumière dorée du soir (extérieur)', label: 'Lumière dorée' },
+    { value: 'Nuit urbaine néon', label: 'Nuit urbaine' },
+    { value: 'Plage tropicale ensoleillée', label: 'Plage tropicale' },
+    { value: 'Intérieur minimaliste (lumière douce)', label: 'Intérieur minimaliste' },
+];
+
+const tonsMarketing = [
+    { value: 'Professionnel', label: 'Professionnel' },
+    { value: 'Luxueux', label: 'Luxueux' },
+    { value: 'Énergique et jeune', label: 'Énergique' },
+    { value: 'Inspirant', label: 'Inspirant' },
 ];
 
 const teintesPeau = [
@@ -264,7 +270,8 @@ const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptio
 
           <OptionSelector label="Morphologie" options={morphologies} selected={modelOptions.morphologie} onChange={(v) => handleOptionChange('morphologie', v)} />
           <OptionSelector label="Style vestimentaire" options={styles} selected={modelOptions.style} onChange={(v) => handleOptionChange('style', v)} />
-          <OptionSelector label="Arrière-plan" options={arrierePlans} selected={modelOptions.arrierePlan} onChange={(v) => handleOptionChange('arrierePlan', v)} />
+          <OptionSelector label="Ambiance et Lumière" options={ambiances} selected={modelOptions.ambiance} onChange={(v) => handleOptionChange('ambiance', v)} />
+          <OptionSelector label="Ton Marketing" options={tonsMarketing} selected={modelOptions.tonMarketing} onChange={(v) => handleOptionChange('tonMarketing', v)} />
         </div>
 
         {/* Preview and Action Panel */}

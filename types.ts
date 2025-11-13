@@ -15,7 +15,8 @@ export interface ModelOptions {
   style: string; // 'casual', 'professionnel', 'chic', 'traditionnel', 'sportif'
   expression: string;
   origineEthnique: string;
-  arrierePlan: string;
+  ambiance: string;
+  tonMarketing: string;
   useMyFace: boolean;
 }
 

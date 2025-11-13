@@ -23,7 +23,8 @@ export default function MainApp() {
     style: 'chic',
     expression: 'sourire léger',
     origineEthnique: 'Afrique de l’Ouest',
-    arrierePlan: 'Studio sobre (gris/noir)',
+    ambiance: 'Studio sobre (éclairage neutre)',
+    tonMarketing: 'Professionnel',
     useMyFace: false,
   });
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
