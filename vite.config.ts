@@ -8,8 +8,6 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // Seuls les assets de base sont inclus pour éviter les erreurs 404.
-      // NOTE: Pour réactiver les captures d'écran, etc., ajoutez les fichiers dans /public et réinsérez-les ici.
       includeAssets: [
         'favicon.ico',
         'vite.svg',
@@ -28,27 +26,26 @@ export default defineConfig({
         orientation: 'portrait',
         dir: 'ltr',
         categories: ['business', 'photo', 'design', 'shopping'],
-        // Les icônes PNG ont été retirées car les fichiers n'existent pas.
-        // PWABuilder peut utiliser les icônes du favicon par défaut.
-        // Ajoutez vos fichiers icon-192x192.png et icon-512x512.png dans /public pour les réactiver.
+        // Configuration d'icônes robuste utilisant les fichiers existants
         icons: [
+          {
+            src: 'favicon.ico',
+            sizes: '64x64 32x32 24x24 16x16',
+            type: 'image/x-icon'
+          },
           {
             src: 'vite.svg',
             sizes: 'any',
             type: 'image/svg+xml',
-            purpose: 'any'
+            purpose: 'any maskable' // 'maskable' est une bonne pratique
           }
         ]
-        // Les sections 'shortcuts' et 'screenshots' ont été retirées car les fichiers image étaient manquants, causant des erreurs.
       },
       workbox: {
-        // Met en cache tous les assets générés par le build pour le fonctionnement hors-ligne
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        // S'assure que le nouveau service worker prend le contrôle immédiatement
         skipWaiting: true,
         clientsClaim: true,
       },
-      // Active les fonctionnalités PWA en mode développement pour faciliter les tests
       devOptions: {
         enabled: true
       }
