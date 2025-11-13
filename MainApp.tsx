@@ -2,16 +2,19 @@ import React, { useState, useCallback, useRef } from 'react';
 import { AppStep, ModelOptions, UploadedImage } from './types';
 import Accueil from './components/Accueil';
 import UploadProduit from './components/UploadProduit';
+import ValidateDescription from './components/ValidateDescription';
 import SelectModele from './components/SelectModele';
 import Generation from './components/Generation';
 import Resultats from './components/Resultats';
 import Header from './components/Header';
-import { generateImagesAndCaption } from './services/geminiService';
+import { generateImagesAndCaption, detectProduct } from './services/geminiService';
 
 export default function MainApp() {
   const [step, setStep] = useState<AppStep>(AppStep.Accueil);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [faceImage, setFaceImage] = useState<UploadedImage | null>(null);
+  const [productDescription, setProductDescription] = useState<string>('');
+  const [isDetecting, setIsDetecting] = useState(false);
   const [modelOptions, setModelOptions] = useState<ModelOptions>({
     sexe: 'Femme',
     typeDePeau: 'noir',
@@ -35,18 +38,40 @@ export default function MainApp() {
     setStep(AppStep.Upload);
   }, []);
 
-  const handleImagesUpload = useCallback((images: UploadedImage[]) => {
+  const handleProductAnalysis = useCallback(async (images: UploadedImage[]) => {
     setUploadedImages(images);
-    setStep(AppStep.Select);
+    setStep(AppStep.ValidateDescription);
+    setIsDetecting(true);
+    setError('');
+    try {
+        const description = await detectProduct(images);
+        setProductDescription(description);
+    } catch (err) {
+        console.error("Product detection failed:", err);
+        setError("La détection du produit a échoué. Veuillez décrire le produit manuellement.");
+        setProductDescription('');
+    } finally {
+        setIsDetecting(false);
+    }
   }, []);
   
+  const handleDescriptionValidated = useCallback((finalDescription: string) => {
+      setProductDescription(finalDescription);
+      setError('');
+      setStep(AppStep.Select);
+  }, []);
+
   const handleGoBack = useCallback(() => {
     switch (step) {
       case AppStep.Upload:
         setStep(AppStep.Accueil);
         break;
-      case AppStep.Select:
+      case AppStep.ValidateDescription:
         setStep(AppStep.Upload);
+        setError('');
+        break;
+      case AppStep.Select:
+        setStep(AppStep.ValidateDescription);
         if (error) setError('');
         break;
       case AppStep.Results:
@@ -70,9 +95,15 @@ export default function MainApp() {
         setError("Veuillez téléverser une photo de votre visage pour utiliser cette option.");
         return;
     }
+     if (!productDescription.trim()) {
+        setError("La description du produit ne peut pas être vide.");
+        // This should not happen if flow is correct, but as a safeguard
+        setStep(AppStep.ValidateDescription);
+        return;
+    }
     isGenerationCancelled.current = false;
     setGenerationProgress(0);
-    setPartiallyGeneratedImages(Array(4).fill(null));
+    setPartiallyGeneratedImages(Array(5).fill(null)); // 5 images now
     setStep(AppStep.Generate);
     setError('');
     setIsGenerating(true);
@@ -85,13 +116,13 @@ export default function MainApp() {
         });
       };
         
-      const { images, caption } = await generateImagesAndCaption(uploadedImages, modelOptions, setGenerationProgress, onImageGenerated, faceImage);
+      const { images, caption } = await generateImagesAndCaption(uploadedImages, modelOptions, productDescription, setGenerationProgress, onImageGenerated, faceImage);
       
       if (isGenerationCancelled.current) { return; }
 
       setGeneratedImages(images);
       setMarketingCaption(caption);
-      // Attendre un instant pour que l'utilisateur voie le message de fin
+      
       setTimeout(() => {
         if (!isGenerationCancelled.current) {
             setStep(AppStep.Results);
@@ -112,11 +143,11 @@ export default function MainApp() {
           }
       }
       setError(finalError);
-      setStep(AppStep.Select); // Revenir à la sélection en cas d'erreur
+      setStep(AppStep.Select);
     } finally {
       setIsGenerating(false);
     }
-  }, [uploadedImages, modelOptions, faceImage]);
+  }, [uploadedImages, modelOptions, faceImage, productDescription]);
 
   const handleReset = useCallback(() => {
     isGenerationCancelled.current = false;
@@ -125,6 +156,7 @@ export default function MainApp() {
     setGeneratedImages([]);
     setPartiallyGeneratedImages([]);
     setFaceImage(null);
+    setProductDescription('');
     setModelOptions(prev => ({ ...prev, useMyFace: false }));
     setMarketingCaption('');
     setError('');
@@ -136,7 +168,15 @@ export default function MainApp() {
       case AppStep.Accueil:
         return <Accueil onStart={handleStart} />;
       case AppStep.Upload:
-        return <UploadProduit onImagesUpload={handleImagesUpload} />;
+        return <UploadProduit onAnalyseRequest={handleProductAnalysis} />;
+      case AppStep.ValidateDescription:
+        return <ValidateDescription 
+                  productImages={uploadedImages}
+                  initialDescription={productDescription}
+                  isDetecting={isDetecting}
+                  onConfirm={handleDescriptionValidated}
+                  error={error}
+                />;
       case AppStep.Select:
         return (
           <SelectModele

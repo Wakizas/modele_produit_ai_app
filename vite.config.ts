@@ -19,9 +19,9 @@ export default defineConfig({
         'screenshot-2.png',
       ],
       manifest: {
-        name: 'Modèle Virtuel - Mise en Valeur Produit',
-        short_name: 'Modèle Virtuel',
-        description: 'Générez des visuels ultra-réalistes de vos produits portés par des modèles virtuels.',
+        name: 'AfroVibe Aura Studio',
+        short_name: 'Aura Studio',
+        description: 'Libérez le potentiel de vos produits avec des visuels afro-futuristes générés par IA.',
         theme_color: '#7F00FF',
         background_color: '#0D0D0D',
         display: 'standalone',

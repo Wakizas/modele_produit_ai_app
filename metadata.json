@@ -1,6 +1,6 @@
 {
-  "name": "Modèle Virtuel - Mise en Valeur Produit",
-  "description": "Générez des visuels ultra-réalistes de vos produits sur des avatars. Capturez ou uploadez vos articles, personnalisez le modèle et obtenez 4 rendus professionnels.",
+  "name": "AfroVibe Aura Studio",
+  "description": "Libérez le potentiel de vos produits avec des visuels afro-futuristes générés par IA. Créez des mannequins virtuels uniques qui incarnent votre marque.",
   "requestFramePermissions": [
     "camera"
   ]

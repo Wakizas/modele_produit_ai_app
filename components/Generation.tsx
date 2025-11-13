@@ -11,12 +11,13 @@ const LoadingSpinner = () => (
 
 const Generation: React.FC<GenerationProps> = ({ progress, generatedImages }) => {
   const [message, setMessage] = useState("Préparation du studio virtuel…");
+  const totalPoses = 5;
 
   useEffect(() => {
     const completedCount = generatedImages.filter(img => img).length;
     if (progress < 100) {
-        if (completedCount < 4) {
-            setMessage(`Génération de la pose ${completedCount + 1}/4...`);
+        if (completedCount < totalPoses) {
+            setMessage(`Génération de la pose ${completedCount + 1}/${totalPoses}...`);
         } else {
             setMessage("Création de la légende marketing...");
         }
@@ -32,8 +33,8 @@ const Generation: React.FC<GenerationProps> = ({ progress, generatedImages }) =>
         Votre modèle virtuel prend la pose avec votre produit. Les images apparaîtront ci-dessous dès qu'elles seront prêtes.
       </p>
 
-      <div className="w-full grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 max-w-4xl">
-        {Array.from({ length: 4 }).map((_, index) => (
+      <div className="w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8 max-w-5xl">
+        {Array.from({ length: totalPoses }).map((_, index) => (
           <div key={index} className="bg-dark-card rounded-xl shadow-lg overflow-hidden group aspect-[3/4] flex items-center justify-center">
             {generatedImages[index] ? (
               <img src={generatedImages[index] as string} alt={`Visuel généré ${index + 1}`} className="w-full h-full object-cover" />

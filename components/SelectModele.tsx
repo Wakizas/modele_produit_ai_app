@@ -224,7 +224,7 @@ const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptio
 
   return (
     <div className="max-w-6xl mx-auto">
-      <h2 className="text-3xl font-bold text-white mb-2 text-center">Étape 2 : Créez votre modèle virtuel</h2>
+      <h2 className="text-3xl font-bold text-white mb-2 text-center">Étape 3 : Créez votre modèle virtuel</h2>
       <p className="text-gray-400 mb-6 text-center">Définissez les caractéristiques du modèle qui portera votre produit.</p>
        {error && <p className="text-red-400 text-center mb-4 bg-red-900/30 p-3 rounded-lg">{error}</p>}
       

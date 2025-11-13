@@ -5,22 +5,17 @@ interface AccueilProps {
   onStart: () => void;
 }
 
-const ShareIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="inline-block mx-1 -mt-1" viewBox="0 0 16 16">
-        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
-        <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/>
-    </svg>
-);
-
 const Accueil: React.FC<AccueilProps> = ({ onStart }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-4">
-      <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4">
-        Modèle Virtuel - Mise en Valeur Produit
+      <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 flex justify-center items-center flex-wrap gap-x-3 sm:gap-x-4">
+        <span className="text-[#F77F00]">AfroVibe</span>
+        <span className="text-white">Aura</span>
+        <span className="text-[#009E60]">Studio</span>
       </h1>
       <p className="max-w-2xl text-md sm:text-lg md:text-xl text-gray-300 mb-8">
-        Créez des photoshoots professionnels pour vos produits sans effort.
-        Notre IA génère des modèles ultra-réalistes pour valoriser vos articles.
+        Donnez vie à vos produits avec des mannequins virtuels afro-futuristes.
+        Notre IA crée des visuels uniques qui captivent votre audience.
       </p>
       <button
         onClick={onStart}
@@ -28,20 +23,17 @@ const Accueil: React.FC<AccueilProps> = ({ onStart }) => {
       >
         Commencer maintenant
       </button>
-      <div className="mt-8 space-y-4">
+      <div className="mt-8 space-y-4 w-full max-w-sm flex flex-col items-center">
         <InstallPWAButton />
-        <div className="text-center text-gray-400 text-sm max-w-md mx-auto p-4 bg-dark-card/30 rounded-lg">
-            <p>
-                Pour une expérience optimale, installez cette application sur votre appareil.
-            </p>
-            <p className="mt-2">
-                <strong className="text-accent">Sur Android :</strong> Utilisez le bouton ci-dessus ou cherchez "Installer l'application" dans le menu de votre navigateur.
-            </p>
-            <p className="mt-1">
-                <strong className="text-accent">Sur iOS (iPhone/iPad) :</strong> Appuyez sur l'icône de Partage <ShareIcon/> dans Safari, puis faites défiler et sélectionnez "Sur l'écran d'accueil".
-            </p>
-        </div>
+        <img
+            src="https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+            alt="Personne d'origine africaine interagissant avec une interface d'intelligence artificielle futuriste"
+            className="rounded-2xl shadow-lg border-2 border-accent/30 object-cover w-full"
+        />
       </div>
+      <footer className="mt-12 text-accent font-medium text-sm">
+        <p>powered by DAML Consulting</p>
+      </footer>
     </div>
   );
 };

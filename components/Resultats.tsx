@@ -70,12 +70,12 @@ const Resultats: React.FC<ResultatsProps> = ({ images, caption }) => {
     };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       {lightboxImage && <Lightbox imageUrl={lightboxImage} onClose={() => setLightboxImage(null)} onDownload={() => downloadImage(lightboxImage, images.indexOf(lightboxImage))} />}
       <h2 className="text-4xl font-bold text-white mb-2 text-center">Vos visuels sont prêts 🎉</h2>
       <p className="text-lg text-gray-400 mb-8 text-center">Cliquez sur une image pour l'agrandir et la télécharger.</p>
       
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-12">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-12">
         {images.map((img, index) => (
           <div key={index} className="bg-dark-card rounded-xl shadow-lg overflow-hidden group">
             <div className="overflow-hidden aspect-[3/4] relative cursor-pointer" onClick={() => setLightboxImage(img)}>
