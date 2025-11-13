@@ -8,16 +8,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // Inclut les icônes et captures d'écran dans le cache pour le mode hors-ligne.
-      // IMPORTANT: Assurez-vous que ces fichiers existent bien dans votre dossier `/public`.
+      // Seuls les assets de base sont inclus pour éviter les erreurs 404.
+      // NOTE: Pour réactiver les captures d'écran, etc., ajoutez les fichiers dans /public et réinsérez-les ici.
       includeAssets: [
         'favicon.ico',
-        'vite.svg', 
-        'icon-192x192.png', 
-        'icon-512x512.png', 
-        'apple-touch-icon.png',
-        'screenshot-1.png',
-        'screenshot-2.png',
+        'vite.svg',
       ],
       manifest: {
         name: 'AfroVibe Aura Studio',
@@ -26,56 +21,25 @@ export default defineConfig({
         theme_color: '#7F00FF',
         background_color: '#0D0D0D',
         display: 'standalone',
+        display_override: ['standalone', 'fullscreen'],
         scope: '/',
         start_url: '/',
-        id: '/',
+        id: '/?v=1', // ID stable pour l'application
         orientation: 'portrait',
+        dir: 'ltr',
         categories: ['business', 'photo', 'design', 'shopping'],
-        shortcuts: [
-          {
-            name: 'Commencer une nouvelle génération',
-            short_name: 'Nouveau',
-            description: 'Lancer un nouveau projet de modèle virtuel',
-            url: '/',
-            icons: [{ src: '/icon-192x192.png', sizes: '192x192', type: 'image/png' }]
-          }
-        ],
-        screenshots: [
-          {
-            src: '/screenshot-1.png',
-            sizes: '1080x1920',
-            type: 'image/png',
-            form_factor: 'narrow',
-            label: 'Étape de téléversement et de personnalisation du modèle'
-          },
-          {
-            src: '/screenshot-2.png',
-            sizes: '1080x1920',
-            type: 'image/png',
-            form_factor: 'narrow',
-            label: 'Affichage des résultats de la génération'
-          }
-        ],
+        // Les icônes PNG ont été retirées car les fichiers n'existent pas.
+        // PWABuilder peut utiliser les icônes du favicon par défaut.
+        // Ajoutez vos fichiers icon-192x192.png et icon-512x512.png dans /public pour les réactiver.
         icons: [
           {
-            src: '/icon-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
+            src: 'vite.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
             purpose: 'any'
-          },
-          {
-            src: '/icon-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any'
-          },
-          {
-            src: '/icon-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable'
           }
         ]
+        // Les sections 'shortcuts' et 'screenshots' ont été retirées car les fichiers image étaient manquants, causant des erreurs.
       },
       workbox: {
         // Met en cache tous les assets générés par le build pour le fonctionnement hors-ligne
