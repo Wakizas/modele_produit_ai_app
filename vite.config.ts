@@ -26,18 +26,20 @@ export default defineConfig({
         orientation: 'portrait',
         dir: 'ltr',
         categories: ['business', 'photo', 'design', 'shopping'],
-        // Configuration d'icônes robuste utilisant les fichiers existants
+        // Utilisation de l'icône SVG existante pour une compatibilité moderne et évolutive.
+        // Cela résout les erreurs "404 Not Found" de PWABuilder.
         icons: [
           {
-            src: 'favicon.ico',
-            sizes: '64x64 32x32 24x24 16x16',
-            type: 'image/x-icon'
+            src: 'vite.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any'
           },
           {
             src: 'vite.svg',
             sizes: 'any',
             type: 'image/svg+xml',
-            purpose: 'any maskable' // 'maskable' est une bonne pratique
+            purpose: 'maskable'
           }
         ]
       },
