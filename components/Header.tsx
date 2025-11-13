@@ -1,6 +1,5 @@
 import React from 'react';
 import { AppStep } from '../types';
-import InstallPWAButton from './InstallPWAButton';
 
 interface HeaderProps {
     step: AppStep;
@@ -42,7 +41,6 @@ const Header: React.FC<HeaderProps> = ({ step, onGoBack, onGoHome }) => {
             <div></div>
 
             <div className="justify-self-end flex items-center gap-2">
-                <InstallPWAButton />
                 <button onClick={onGoHome} className="flex items-center text-gray-400 hover:text-white transition-colors font-semibold p-2 rounded-lg hover:bg-white/10">
                     <HomeIcon />
                      <span className="ml-2 hidden sm:inline">Menu principal</span>
