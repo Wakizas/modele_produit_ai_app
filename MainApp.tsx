@@ -2,19 +2,16 @@ import React, { useState, useCallback, useRef } from 'react';
 import { AppStep, ModelOptions, UploadedImage } from './types';
 import Accueil from './components/Accueil';
 import UploadProduit from './components/UploadProduit';
-import ValidateDescription from './components/ValidateDescription';
 import SelectModele from './components/SelectModele';
 import Generation from './components/Generation';
 import Resultats from './components/Resultats';
 import Header from './components/Header';
-import { generateImagesAndCaption, detectProduct } from './services/geminiService';
+import { generateImagesAndCaption } from './services/geminiService';
 
 export default function MainApp() {
   const [step, setStep] = useState<AppStep>(AppStep.Accueil);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [faceImage, setFaceImage] = useState<UploadedImage | null>(null);
-  const [productDescription, setProductDescription] = useState<string>('');
-  const [isDetecting, setIsDetecting] = useState(false);
   const [modelOptions, setModelOptions] = useState<ModelOptions>({
     sexe: 'Femme',
     typeDePeau: 'noir',
@@ -39,57 +36,10 @@ export default function MainApp() {
     setStep(AppStep.Upload);
   }, []);
 
-  const handleProductAnalysis = useCallback(async (images: UploadedImage[]) => {
+  const handleUploadConfirmed = useCallback((images: UploadedImage[]) => {
     setUploadedImages(images);
-    setStep(AppStep.ValidateDescription);
-    setIsDetecting(true);
+    setStep(AppStep.Select);
     setError('');
-    try {
-        const description = await detectProduct(images);
-        setProductDescription(description);
-    } catch (err) {
-        console.error("Product detection failed:", err);
-        let finalError = "La détection du produit a échoué. Veuillez décrire le produit manuellement.";
-        if (err instanceof Error) {
-            switch (err.message) {
-                case 'SAFETY_BLOCK':
-                    finalError = "L'image a été bloquée par nos filtres de sécurité. Essayez une autre photo.";
-                    break;
-                case 'API_KEY_INVALID':
-                    finalError = "Votre clé API n'est pas valide. Veuillez la vérifier.";
-                    break;
-                case 'BILLING_NOT_ENABLED':
-                    finalError = "La facturation n'est pas activée sur votre compte Google. Activez-la pour continuer.";
-                    break;
-                case 'QUOTA_EXCEEDED':
-                case 'MODEL_OVERLOADED':
-                    finalError = "Le service est surchargé en raison d'une forte demande. Veuillez réessayer dans quelques instants.";
-                    break;
-                case 'RETRY_FAILED':
-                    finalError = "La connexion au service est instable. Vérifiez votre connexion internet et réessayez.";
-                    break;
-                default:
-                    finalError = "Une erreur inattendue est survenue. Veuillez décrire le produit manuellement.";
-                    break;
-            }
-        }
-        setError(finalError);
-        setProductDescription('');
-    } finally {
-        setIsDetecting(false);
-    }
-  }, []);
-  
-  const retryProductAnalysis = useCallback(() => {
-      if (uploadedImages.length > 0) {
-          handleProductAnalysis(uploadedImages);
-      }
-  }, [uploadedImages, handleProductAnalysis]);
-  
-  const handleDescriptionValidated = useCallback((finalDescription: string) => {
-      setProductDescription(finalDescription);
-      setError('');
-      setStep(AppStep.Select);
   }, []);
 
   const handleGoBack = useCallback(() => {
@@ -97,12 +47,9 @@ export default function MainApp() {
       case AppStep.Upload:
         setStep(AppStep.Accueil);
         break;
-      case AppStep.ValidateDescription:
-        setStep(AppStep.Upload);
-        setError('');
-        break;
       case AppStep.Select:
-        setStep(AppStep.ValidateDescription);
+        isGenerationCancelled.current = true;
+        setStep(AppStep.Upload);
         if (error) setError('');
         break;
       case AppStep.Results:
@@ -126,11 +73,6 @@ export default function MainApp() {
         setError("Veuillez téléverser une photo de votre visage pour utiliser cette option.");
         return;
     }
-     if (!productDescription.trim()) {
-        setError("La description du produit ne peut pas être vide.");
-        setStep(AppStep.ValidateDescription);
-        return;
-    }
     isGenerationCancelled.current = false;
     setGenerationProgress(0);
     setPartiallyGeneratedImages(Array(5).fill(null));
@@ -147,7 +89,7 @@ export default function MainApp() {
         });
       };
         
-      const { images, caption } = await generateImagesAndCaption(uploadedImages, modelOptions, productDescription, setGenerationProgress, onImageGenerated, faceImage);
+      const { images, caption } = await generateImagesAndCaption(uploadedImages, modelOptions, setGenerationProgress, onImageGenerated, faceImage);
       
       if (isGenerationCancelled.current) { return; }
 
@@ -199,7 +141,7 @@ export default function MainApp() {
           setIsGenerating(false);
       }
     }
-  }, [uploadedImages, modelOptions, faceImage, productDescription]);
+  }, [uploadedImages, modelOptions, faceImage]);
   
   const retryGeneration = useCallback(() => {
       setError('');
@@ -212,7 +154,6 @@ export default function MainApp() {
     setGeneratedImages([]);
     setPartiallyGeneratedImages([]);
     setFaceImage(null);
-    setProductDescription('');
     setModelOptions(prev => ({ ...prev, useMyFace: false }));
     setMarketingCaption('');
     setError('');
@@ -234,16 +175,7 @@ export default function MainApp() {
       case AppStep.Accueil:
         return <Accueil onStart={handleStart} />;
       case AppStep.Upload:
-        return <UploadProduit onAnalyseRequest={handleProductAnalysis} />;
-      case AppStep.ValidateDescription:
-        return <ValidateDescription 
-                  productImages={uploadedImages}
-                  initialDescription={productDescription}
-                  isDetecting={isDetecting}
-                  onConfirm={handleDescriptionValidated}
-                  error={error}
-                  onRetry={retryProductAnalysis}
-                />;
+        return <UploadProduit onUploadConfirmed={handleUploadConfirmed} />;
       case AppStep.Select:
         return (
           <SelectModele

@@ -82,7 +82,7 @@ const CameraModal: React.FC<{onClose: () => void, onCapture: (img: UploadedImage
 }
 
 
-const UploadProduit: React.FC<{onAnalyseRequest: (images: UploadedImage[]) => void}> = ({ onAnalyseRequest }) => {
+const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => void}> = ({ onUploadConfirmed }) => {
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -139,9 +139,9 @@ const UploadProduit: React.FC<{onAnalyseRequest: (images: UploadedImage[]) => vo
     setUploadedImages(prev => prev.filter((_, i) => i !== index));
   }
   
-  const handleAnalyse = () => {
+  const handleConfirm = () => {
     if (uploadedImages.length > 0) {
-        onAnalyseRequest(uploadedImages);
+        onUploadConfirmed(uploadedImages);
     }
   }
 
@@ -202,10 +202,10 @@ const UploadProduit: React.FC<{onAnalyseRequest: (images: UploadedImage[]) => vo
               ))}
             </div>
              <button
-                onClick={handleAnalyse}
+                onClick={handleConfirm}
                 className="w-full bg-secondary text-black font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:bg-yellow-400 transition-all duration-300 transform hover:scale-105"
             >
-                Analyser le produit
+                Définir le modèle
             </button>
           </div>
         )}

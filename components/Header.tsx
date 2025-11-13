@@ -18,7 +18,7 @@ const CancelIcon = () => (
 );
 
 const Header: React.FC<HeaderProps> = ({ step, onGoBack, onGoHome }) => {
-    if (![AppStep.Upload, AppStep.ValidateDescription, AppStep.Select, AppStep.Generate, AppStep.Results].includes(step)) {
+    if (step === AppStep.Accueil) {
         return null;
     }
 

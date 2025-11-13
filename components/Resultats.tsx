@@ -8,8 +8,8 @@ interface ResultatsProps {
 
 const CopyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>;
 const CheckIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2 text-green-400"><polyline points="20 6 9 17 4 12"></polyline></svg>;
-const DownloadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>;
-const ShareIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>;
+const DownloadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>;
+const ShareIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>;
 const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
 const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 
@@ -47,13 +47,13 @@ const Lightbox: React.FC<{ imageUrl: string; onClose: () => void; onDownload: ()
                     className="absolute -top-4 -right-4 bg-white text-black rounded-full p-2 hover:bg-gray-300 transition-colors z-10">
                     <CloseIcon />
                 </button>
-                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-4 z-10">
-                    <button onClick={onDownload} className="bg-primary text-white font-semibold py-2 px-6 rounded-full text-lg hover:bg-accent transition-colors flex items-center shadow-lg hover:shadow-glow-accent">
-                        <DownloadIcon /> Télécharger
+                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-4 z-10">
+                    <button onClick={onDownload} className="bg-primary text-white font-semibold py-3 px-4 sm:px-6 rounded-full text-base hover:bg-accent transition-colors flex items-center shadow-lg hover:shadow-glow-accent">
+                        <DownloadIcon /> <span className="ml-2">Télécharger</span>
                     </button>
                     {onShare && (
-                        <button onClick={onShare} className="bg-secondary text-black font-semibold py-2 px-6 rounded-full text-lg hover:bg-yellow-400 transition-colors flex items-center shadow-lg">
-                            <ShareIcon /> Partager
+                        <button onClick={onShare} className="bg-secondary text-black font-semibold py-3 px-4 sm:px-6 rounded-full text-base hover:bg-yellow-400 transition-colors flex items-center shadow-lg">
+                            <ShareIcon /> <span className="ml-2">Partager</span>
                         </button>
                     )}
                 </div>
@@ -137,12 +137,20 @@ const Resultats: React.FC<ResultatsProps> = ({ images, caption, onStartNew }) =>
                         </div>
                     </div>
                     <div className="flex bg-gray-700">
-                        <button onClick={(e) => { e.stopPropagation(); downloadImage(img, index); }} className="flex-1 text-white font-semibold py-2 px-2 hover:bg-primary transition-colors flex items-center justify-center text-sm">
-                            <DownloadIcon /> Télécharger
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); downloadImage(img, index); }} 
+                            aria-label={`Télécharger l'image ${index + 1}`}
+                            className="flex-1 text-white font-semibold py-3 px-2 hover:bg-primary transition-colors flex items-center justify-center text-sm">
+                            <DownloadIcon />
+                            <span className="hidden sm:inline ml-2">Télécharger</span>
                         </button>
                          {isShareApiAvailable && (
-                            <button onClick={(e) => { e.stopPropagation(); handleShare(img, index); }} className="flex-1 text-white font-semibold py-2 px-2 hover:bg-accent transition-colors flex items-center justify-center text-sm border-l border-gray-600">
-                                <ShareIcon /> Partager
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); handleShare(img, index); }} 
+                                aria-label={`Partager l'image ${index + 1}`}
+                                className="flex-1 text-white font-semibold py-3 px-2 hover:bg-accent transition-colors flex items-center justify-center text-sm border-l border-gray-600">
+                                <ShareIcon />
+                                <span className="hidden sm:inline ml-2">Partager</span>
                             </button>
                         )}
                     </div>

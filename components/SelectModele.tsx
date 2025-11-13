@@ -42,9 +42,9 @@ const OptionSelector = <T extends string>({ label, options, selected, onChange }
 );
 
 // ICONS
-const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-5 w-5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>;
-const CameraIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-5 w-5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>;
-const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-5 w-5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>;
+const CameraIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-5 w-5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>;
+const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 
 // Camera Modal Component (Adapted from UploadProduit.tsx)
 const CameraModal: React.FC<{onClose: () => void, onCapture: (img: UploadedImage) => void}> = ({onClose, onCapture}) => {
@@ -240,7 +240,7 @@ const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptio
 
   return (
     <div className="max-w-6xl mx-auto">
-      <h2 className="text-3xl font-bold text-white mb-2 text-center">Étape 3 : Créez votre modèle virtuel</h2>
+      <h2 className="text-3xl font-bold text-white mb-2 text-center">Étape 2 : Créez votre modèle virtuel</h2>
       <p className="text-gray-400 mb-6 text-center">Définissez les caractéristiques du modèle qui portera votre produit.</p>
        {error && (
             <div className="text-red-400 text-center mb-4 bg-red-900/30 p-3 rounded-lg">
@@ -260,7 +260,7 @@ const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptio
         
         {/* Options Panel */}
         <div className="w-full md:flex-1 bg-dark-card/60 p-4 sm:p-6 rounded-2xl shadow-lg">
-          <div className="mb-6 bg-black/20 p-4 rounded-lg border border-accent/20">
+           <div className="mb-6 bg-black/20 p-4 rounded-lg border border-accent/20">
             <label htmlFor="use-my-face-toggle" className="flex items-center justify-between cursor-pointer">
                 <span className="text-lg font-semibold text-white">Utiliser mon visage</span>
                 <div className="relative">
@@ -301,7 +301,7 @@ const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptio
           {productImagePreviews.length > 0 && (
             <div className="w-full">
                 <p className="text-lg font-semibold text-accent mb-2 text-center">
-                    Vos Produits
+                    Votre Produit
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-2 bg-dark-card/60 p-2 rounded-xl">
                  {productImagePreviews.map((preview, index) => (
@@ -312,7 +312,7 @@ const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptio
           )}
           <button
             onClick={onGenerate}
-            disabled={isGenerating}
+            disabled={isGenerating || (modelOptions.useMyFace && !faceImage)}
             className="w-full bg-secondary text-black font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:bg-yellow-400 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-500 disabled:cursor-not-allowed"
           >
             {isGenerating ? 'Génération en cours...' : 'Générer les modèles ✨'}
