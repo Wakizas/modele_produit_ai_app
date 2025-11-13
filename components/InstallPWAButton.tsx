@@ -39,18 +39,15 @@ const InstallPWAButton: React.FC = () => {
     setInstallPrompt(null);
   };
 
-  if (!installPrompt) {
-    return null;
-  }
-
   return (
     <button
       onClick={handleInstallClick}
-      className="bg-gray-700/50 text-gray-200 font-semibold py-2 px-4 rounded-lg border border-gray-600 hover:bg-gray-700 transition-colors flex items-center text-sm animate-fade-in"
-      title="Installer l'application sur votre appareil"
+      disabled={!installPrompt}
+      className="bg-gray-700/50 text-gray-200 font-semibold py-2 px-4 rounded-lg border border-gray-600 hover:bg-gray-700 transition-colors flex items-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+      title={installPrompt ? "Installer l'application sur votre appareil" : "Installation non disponible pour ce navigateur"}
     >
         <InstallIcon />
-        Installer l'application
+        Installer l'app
     </button>
   );
 };

@@ -63,9 +63,7 @@ const Resultats: React.FC<ResultatsProps> = ({ images, caption }) => {
     
     const handleDownloadAll = () => {
         images.forEach((img, index) => {
-            setTimeout(() => {
-                downloadImage(img, index);
-            }, index * 500); // Stagger downloads to prevent browser issues
+            downloadImage(img, index);
         });
     };
 
