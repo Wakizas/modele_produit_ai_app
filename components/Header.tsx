@@ -18,8 +18,10 @@ const CancelIcon = () => (
 );
 
 const Header: React.FC<HeaderProps> = ({ step, onGoBack, onGoHome }) => {
+
     if (step === AppStep.Accueil) {
-        return null;
+        // Header vide pour la page d'accueil pour maintenir la mise en page
+        return <header className="w-full h-[60px] mb-8" />;
     }
 
     const isGenerating = step === AppStep.Generate;

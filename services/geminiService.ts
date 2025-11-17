@@ -221,10 +221,10 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
 }
 
 
-async function generateMarketingCaption(options: ModelOptions, maxRetries = 3): Promise<string> {
+async function generateMarketingCaption(options: ModelOptions, productDescription: string, maxRetries = 3): Promise<string> {
   const model = 'gemini-2.5-flash';
 
-  const prompt = `Crée une courte légende marketing (2 phrases max), en français, pour une publication Instagram. La légende doit mettre en valeur les produits présentés dans les visuels générés, avec un style "${options.style}". Inclus un appel à l'action. Le ton doit être ${options.tonMarketing}.`;
+  const prompt = `Crée une courte légende marketing (2 phrases max), en français, pour une publication Instagram. Le produit est : "${productDescription}". La légende doit mettre en valeur ce produit avec un style "${options.style}". Inclus un appel à l'action. Le ton doit être ${options.tonMarketing}.`;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -311,7 +311,7 @@ export async function generateImagesAndCaption(
     })
   );
 
-  const captionPromise = generateMarketingCaption(options).then(caption => {
+  const captionPromise = generateMarketingCaption(options, productDescription).then(caption => {
     updateProgress();
     return caption;
   });

@@ -2,6 +2,10 @@
 
 
 
+
+
+
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UploadedImage } from '../types';
 
@@ -160,7 +164,6 @@ const CameraModal: React.FC<{onClose: () => void, onCapture: (img: MediaItem) =>
             if (!context) return;
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
             const dataUrl = canvas.toDataURL('image/jpeg');
-            // FIX: Create file from blob to ensure correct image content
             canvas.toBlob((blob) => {
                 if (blob) {
                     const file = new File([blob], `capture-${Date.now()}.jpg`, {type: 'image/jpeg'});
@@ -194,7 +197,6 @@ const VideoRecorderModal: React.FC<{onClose: () => void, onCapture: (video: Medi
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
     const [countdown, setCountdown] = useState(5);
     const [error, setError] = useState('');
-    // FIX: Changed NodeJS.Timeout to number for browser compatibility
     const countdownIntervalRef = useRef<number>();
 
     useEffect(() => {
@@ -374,7 +376,7 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
         }
         onUploadConfirmed(finalImages);
     } catch(err) {
-        // FIX: The caught error `err` is of type `unknown`. Add a type guard to check if it's an instance of `Error` before accessing its properties like `message`.
+        // FIX: The caught error `err` is of type `unknown` by default. Add a type guard to check if it's an instance of `Error` before accessing its properties like `message`.
         console.error("Processing error:", err);
         if (err instanceof Error) {
             setUploadError(`Une erreur est survenue lors du traitement : ${err.message}. Veuillez réessayer.`);
