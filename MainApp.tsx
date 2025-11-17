@@ -2,11 +2,12 @@ import React, { useState, useCallback, useRef } from 'react';
 import { AppStep, ModelOptions, UploadedImage } from './types';
 import Accueil from './components/Accueil';
 import UploadProduit from './components/UploadProduit';
+import ValidateDescription from './components/ValidateDescription';
 import SelectModele from './components/SelectModele';
 import Generation from './components/Generation';
 import Resultats from './components/Resultats';
 import Header from './components/Header';
-import { generateImagesAndCaption } from './services/geminiService';
+import { generateImagesAndCaption, detectProductDescription } from './services/geminiService';
 
 export default function MainApp() {
   const [step, setStep] = useState<AppStep>(AppStep.Accueil);
@@ -27,6 +28,8 @@ export default function MainApp() {
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [partiallyGeneratedImages, setPartiallyGeneratedImages] = useState<(string | null)[]>([]);
   const [marketingCaption, setMarketingCaption] = useState<string>('');
+  const [productDescription, setProductDescription] = useState('');
+  const [isDetectingDescription, setIsDetectingDescription] = useState(false);
   const [error, setError] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
@@ -36,20 +39,72 @@ export default function MainApp() {
     setStep(AppStep.Upload);
   }, []);
 
-  const handleUploadConfirmed = useCallback((images: UploadedImage[]) => {
+  const handleUploadConfirmed = useCallback(async (images: UploadedImage[]) => {
     setUploadedImages(images);
+    setStep(AppStep.ValidateDescription);
+    setError('');
+    setIsDetectingDescription(true);
+    setProductDescription('');
+
+    try {
+      const description = await detectProductDescription(images[0]);
+      setProductDescription(description);
+    } catch (err) {
+      console.error('Description detection failed:', err);
+      let detectionError = "L'IA n'a pas pu identifier le produit. Veuillez entrer manuellement une description.";
+      if (err instanceof Error) {
+          if (err.message.includes('OVERLOADED')) {
+              detectionError = "Le service est surchargé. Veuillez réessayer ou entrer une description manuellement.";
+          } else if (err.message.includes('SAFETY')) {
+              detectionError = "L'image n'a pas pu être analysée. Veuillez réessayer avec une autre image ou entrer une description manuellement.";
+          }
+      }
+      setError(detectionError);
+      setProductDescription(''); 
+    } finally {
+      setIsDetectingDescription(false);
+    }
+  }, []);
+
+  const handleDescriptionConfirmed = useCallback((description: string) => {
+    setProductDescription(description);
     setStep(AppStep.Select);
     setError('');
   }, []);
+
+  const handleRetryDescriptionDetection = useCallback(async () => {
+    if (uploadedImages.length === 0) return;
+    setError('');
+    setIsDetectingDescription(true);
+    setProductDescription('');
+    try {
+      const description = await detectProductDescription(uploadedImages[0]);
+      setProductDescription(description);
+    } catch (err) {
+      console.error('Description detection failed on retry:', err);
+      let detectionError = "La nouvelle tentative a échoué. Veuillez entrer manuellement une description.";
+       if (err instanceof Error && err.message.includes('OVERLOADED')) {
+          detectionError = "Le service est toujours surchargé. Veuillez entrer manuellement une description.";
+       }
+      setError(detectionError);
+      setProductDescription('');
+    } finally {
+      setIsDetectingDescription(false);
+    }
+  }, [uploadedImages]);
 
   const handleGoBack = useCallback(() => {
     switch (step) {
       case AppStep.Upload:
         setStep(AppStep.Accueil);
         break;
+      case AppStep.ValidateDescription:
+        setStep(AppStep.Upload);
+        setError('');
+        break;
       case AppStep.Select:
         isGenerationCancelled.current = true;
-        setStep(AppStep.Upload);
+        setStep(AppStep.ValidateDescription);
         if (error) setError('');
         break;
       case AppStep.Results:
@@ -89,7 +144,7 @@ export default function MainApp() {
         });
       };
         
-      const { images, caption } = await generateImagesAndCaption(uploadedImages, modelOptions, setGenerationProgress, onImageGenerated, faceImage);
+      const { images, caption } = await generateImagesAndCaption(uploadedImages, modelOptions, productDescription, setGenerationProgress, onImageGenerated, faceImage);
       
       if (isGenerationCancelled.current) { return; }
 
@@ -141,7 +196,7 @@ export default function MainApp() {
           setIsGenerating(false);
       }
     }
-  }, [uploadedImages, modelOptions, faceImage]);
+  }, [uploadedImages, modelOptions, faceImage, productDescription]);
   
   const retryGeneration = useCallback(() => {
       setError('');
@@ -154,6 +209,7 @@ export default function MainApp() {
     setGeneratedImages([]);
     setPartiallyGeneratedImages([]);
     setFaceImage(null);
+    setProductDescription('');
     setModelOptions(prev => ({ ...prev, useMyFace: false }));
     setMarketingCaption('');
     setError('');
@@ -176,6 +232,15 @@ export default function MainApp() {
         return <Accueil onStart={handleStart} />;
       case AppStep.Upload:
         return <UploadProduit onUploadConfirmed={handleUploadConfirmed} />;
+      case AppStep.ValidateDescription:
+        return <ValidateDescription
+            productImages={uploadedImages}
+            initialDescription={productDescription}
+            isDetecting={isDetectingDescription}
+            onConfirm={handleDescriptionConfirmed}
+            error={error}
+            onRetry={handleRetryDescriptionDetection}
+            />;
       case AppStep.Select:
         return (
           <SelectModele

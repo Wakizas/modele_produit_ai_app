@@ -14,8 +14,49 @@ function fileToGenerativePart(base64: string, mimeType: string) {
   };
 }
 
+export async function detectProductDescription(image: UploadedImage, maxRetries = 3): Promise<string> {
+  const model = 'gemini-2.5-flash';
+  const imagePart = fileToGenerativePart(image.base64, image.file.type);
+  const textPart = { text: "Décris brièvement le produit principal visible sur cette image en une phrase concise (15 mots max). Cible les caractéristiques clés pour la mode : type de vêtement, couleur, et style principal. Par exemple: 'T-shirt blanc en coton avec un logo rouge.' ou 'Robe de soirée longue et bleue en satin.'" };
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: { parts: [imagePart, textPart] },
+      });
+      const text = response.text;
+      if (!text || text.trim().length === 0) {
+        throw new Error('Empty API response for description');
+      }
+      return text.trim();
+    } catch (error) {
+      console.error(`Description detection attempt ${attempt}/${maxRetries} failed:`, error);
+      const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
+      
+      if (errorMessage.includes('safety')) {
+        throw new Error('SAFETY_BLOCK_DESCRIPTION');
+      }
+      if (errorMessage.includes('api key') || errorMessage.includes('billing')) {
+          throw error; // Non-retryable
+      }
+      
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 500 + Math.random() * 500;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        if (errorMessage.includes('503') || errorMessage.includes('overloaded') || errorMessage.includes('quota')) {
+          throw new Error('MODEL_OVERLOADED');
+        }
+        throw new Error('RETRY_FAILED_DESCRIPTION');
+      }
+    }
+  }
+  throw new Error('RETRY_FAILED_DESCRIPTION');
+}
+
 // REFACTORED AND SIMPLIFIED PROMPT FOR BETTER RELIABILITY
-const generateImagePrompt = (options: ModelOptions, pose: string): string => {
+const generateImagePrompt = (options: ModelOptions, pose: string, productDescription: string): string => {
   const qualityPrompt = "Rendu ultra-réaliste, qualité photo professionnelle (8K). Attention aux détails de la peau, des textures de tissu et à un éclairage naturel. Le résultat ne doit pas avoir l'air artificiel.";
 
   if (options.useMyFace) {
@@ -31,7 +72,7 @@ Prompt: Crée une image photoréaliste d'un mannequin avec les caractéristiques
 1.  **Visage (Priorité Absolue):** Le visage du mannequin doit être une **copie exacte** de celui de l'image de référence. La forme des yeux, du nez, de la bouche, le grain de peau doivent être identiques. Le teint de la peau du corps entier (cou, mains, etc.) doit correspondre parfaitement à celui du visage.
 
 2.  **Mannequin & Produit:**
-    -   **Produit à porter:** Le ou les produits présents dans les images fournies. Ils doivent être portés de manière naturelle.
+    -   **Produit à porter:** ${productDescription}. Le produit est visible dans les images fournies.
     -   **Morphologie du corps:** ${options.morphologie}.
     -   **Style général:** ${options.style}.
     -   **Pose:** "${pose}".
@@ -55,7 +96,7 @@ Prompt: Crée une image photoréaliste de qualité professionnelle d'un mannequi
 -   **Expression Faciale:** ${options.expression}
 
 **2. Détails du Produit & Style:**
--   **Produit à porter:** Le ou les produits présents dans les images fournies.
+-   **Produit à porter:** ${productDescription}. Le produit est visible dans les images fournies.
 -   **Style vestimentaire général:** ${options.style}.
 
 **3. Scène & Pose:**
@@ -99,13 +140,26 @@ const POSES_MAPPING: { [key: string]: string[] } = {
     ]
 };
 
-async function generateSingleImageWithRetry(imageParts: any[], options: ModelOptions, pose: string, maxRetries = 2): Promise<string> {
-  const prompt = generateImagePrompt(options, pose);
+function getPosesForProduct(description: string): string[] {
+    const lowerCaseDescription = description.toLowerCase();
+    for (const key in POSES_MAPPING) {
+        if (key === 'default') continue;
+        const keywords = key.split('|');
+        if (keywords.some(keyword => lowerCaseDescription.includes(keyword))) {
+            return POSES_MAPPING[key];
+        }
+    }
+    return POSES_MAPPING['default'];
+}
+
+async function generateSingleImageWithRetry(imageParts: any[], options: ModelOptions, pose: string, productDescription: string, maxRetries = 2): Promise<string> {
+  const prompt = generateImagePrompt(options, pose, productDescription);
   const textPart = { text: prompt };
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const response = await ai.models.generateContent({
+        // FIX: The `gemini-1.5-flash-image` model is deprecated. Use `gemini-2.5-flash-image` instead.
         model: 'gemini-2.5-flash-image',
         contents: { parts: [...imageParts, textPart] },
         config: {
@@ -223,6 +277,7 @@ async function generateMarketingCaption(options: ModelOptions, maxRetries = 3): 
 export async function generateImagesAndCaption(
   uploadedImages: UploadedImage[],
   options: ModelOptions,
+  productDescription: string,
   onProgress: (progress: number) => void,
   onImageGenerated: (image: string, index: number) => void,
   faceImage: UploadedImage | null
@@ -234,7 +289,7 @@ export async function generateImagesAndCaption(
       imageParts.push(facePart);
   }
   
-  const POSES = POSES_MAPPING['default'];
+  const POSES = getPosesForProduct(productDescription);
   const totalPoses = POSES.length;
 
   onProgress(0);
@@ -249,7 +304,7 @@ export async function generateImagesAndCaption(
   };
 
   const imageGenerationPromises = POSES.map((pose, index) =>
-    generateSingleImageWithRetry(imageParts, options, pose).then(image => {
+    generateSingleImageWithRetry(imageParts, options, pose, productDescription).then(image => {
       onImageGenerated(image, index);
       updateProgress();
       return image;

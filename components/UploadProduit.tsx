@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UploadedImage } from '../types';
 
@@ -28,93 +30,91 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 const extractFramesFromVideo = (videoFile: File, frameCount: number): Promise<{ base64: string, file: File }[]> => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         const video = document.createElement('video');
-        
-        // Timeout to prevent hanging
-        const timeoutId = setTimeout(() => {
-            cleanup();
-            reject(new Error("Le traitement de la vidéo a expiré (15s)."));
-        }, 15000);
-
-        video.preload = 'auto';
+        video.preload = 'metadata';
         video.muted = true;
         video.playsInline = true;
-        
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        const frames: { base64: string, file: File }[] = [];
-        
+        let timeoutId: number;
+
         const cleanup = () => {
-            clearTimeout(timeoutId);
-            // Remove event listeners to prevent memory leaks
-            video.removeEventListener('canplay', onCanPlay);
-            video.removeEventListener('seeked', seekAndCapture);
-            video.removeEventListener('error', onError);
+            if (timeoutId) clearTimeout(timeoutId);
             if (video.src) {
                 URL.revokeObjectURL(video.src);
                 video.src = '';
             }
+            video.onerror = null;
+            video.onloadedmetadata = null;
         };
 
-        let capturedFrames = 0;
-        let interval = 0;
-        let duration = 0;
+        timeoutId = window.setTimeout(() => {
+            cleanup();
+            reject(new Error("Le traitement de la vidéo a expiré (20s)."));
+        }, 20000);
 
-        const seekAndCapture = () => {
-            if (!context) {
-                cleanup();
-                return reject(new Error("Contexte du canevas non disponible."));
-            }
-            context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-            const dataUrl = canvas.toDataURL('image/jpeg');
-            const base64 = dataUrl.split(',')[1];
-            
-            canvas.toBlob(blob => {
-                if (blob) {
-                    const file = new File([blob], `frame-${capturedFrames}.jpg`, { type: 'image/jpeg' });
-                    frames.push({ base64, file });
-                    capturedFrames++;
+        video.onerror = () => {
+            cleanup();
+            reject(new Error('Erreur lors du traitement de la vidéo. Le fichier est peut-être corrompu ou non supporté.'));
+        };
 
-                    if (capturedFrames < frameCount) {
-                        video.currentTime = Math.min(capturedFrames * interval, duration);
-                    } else {
-                        cleanup();
-                        resolve(frames);
-                    }
-                } else {
-                    cleanup();
-                    reject(new Error("Échec de la création du blob à partir de l'image."));
+        video.onloadedmetadata = async () => {
+            try {
+                const duration = video.duration;
+                if (duration <= 0 || !isFinite(duration)) {
+                    return reject(new Error("La durée de la vidéo est invalide."));
                 }
-            }, 'image/jpeg');
-        };
 
-        const onCanPlay = () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            duration = video.duration;
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                if (!context) {
+                    return reject(new Error("Contexte du canevas non disponible."));
+                }
 
-            if (duration <= 0 || !isFinite(duration)) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const frames: { base64: string, file: File }[] = [];
+                // Capture frames from 0.1s to avoid potential black first frame
+                const startTime = Math.min(0.1, duration);
+                const effectiveDuration = duration - startTime;
+                const interval = frameCount > 1 ? effectiveDuration / (frameCount - 1) : 0;
+
+                for (let i = 0; i < frameCount; i++) {
+                    const time = startTime + (i * interval);
+                    video.currentTime = time;
+                    
+                    await new Promise<void>((res, rej) => {
+                        const seekTimeout = setTimeout(() => rej(new Error('Le positionnement dans la vidéo a expiré.')), 3000);
+                        const onSeeked = () => {
+                            clearTimeout(seekTimeout);
+                            video.removeEventListener('seeked', onSeeked);
+                            res();
+                        };
+                        video.addEventListener('seeked', onSeeked);
+                    });
+                    
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const dataUrl = canvas.toDataURL('image/jpeg');
+                    const base64 = dataUrl.split(',')[1];
+                    
+                    const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/jpeg'));
+                    if (!blob) {
+                        console.warn(`Impossible de créer un blob pour l'image au temps ${time}`);
+                        continue;
+                    }
+                    
+                    const file = new File([blob], `frame-${i}.jpg`, { type: 'image/jpeg' });
+                    frames.push({ base64, file });
+                }
+                
+                resolve(frames);
+
+            } catch (err) {
+                reject(err);
+            } finally {
                 cleanup();
-                reject(new Error("La durée de la vidéo est invalide."));
-                return;
             }
-
-            interval = frameCount > 1 ? duration / (frameCount - 1) : 0;
-            
-            video.addEventListener('seeked', seekAndCapture);
-            video.currentTime = 0;
-        };
-
-        const onError = () => {
-          cleanup();
-          console.error("Video loading error:", video.error);
-          reject(new Error('Erreur lors du traitement de la vidéo. Le fichier est peut-être corrompu ou non supporté.'));
         };
         
-        video.addEventListener('canplay', onCanPlay);
-        video.addEventListener('error', onError);
-
         video.src = URL.createObjectURL(videoFile);
     });
 };
@@ -359,7 +359,7 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
         if (hasVideo) {
             const videoItem = mediaItems.find(item => item.type === 'video');
             if(videoItem) {
-                const frames = await extractFramesFromVideo(videoItem.file, 3);
+                const frames = await extractFramesFromVideo(videoItem.file, 5);
                 finalImages = frames.map(frame => ({
                     ...frame,
                     previewUrl: URL.createObjectURL(frame.file)
@@ -374,8 +374,7 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
         }
         onUploadConfirmed(finalImages);
     } catch(err) {
-        // FIX: Add type checking for the caught error. Promises can reject with non-Error objects.
-        // This prevents runtime errors from trying to access properties like 'type' on an 'unknown' value.
+        // FIX: The caught error `err` is of type `unknown`. Add a type guard to check if it's an instance of `Error` before accessing its properties like `message`.
         console.error("Processing error:", err);
         if (err instanceof Error) {
             setUploadError(`Une erreur est survenue lors du traitement : ${err.message}. Veuillez réessayer.`);
@@ -443,7 +442,7 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
               ))}
             </div>
              <button onClick={handleConfirm} disabled={isProcessing} className="w-full bg-secondary text-black font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:bg-yellow-400 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-500 disabled:cursor-not-allowed">
-                {isProcessing ? "Traitement en cours..." : "Définir le modèle"}
+                {isProcessing ? "Traitement en cours..." : "Analyser le produit"}
             </button>
           </div>
         )}
