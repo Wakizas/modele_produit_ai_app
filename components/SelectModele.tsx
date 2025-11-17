@@ -138,10 +138,13 @@ const FaceUploader: React.FC<{ faceImage: UploadedImage | null; setFaceImage: (i
         }
 
         const reader = new FileReader();
-        reader.onloadend = () => {
+        reader.onload = () => {
             const base64String = reader.result as string;
             const base64Data = base64String.split(',')[1];
             setFaceImage({ file, base64: base64Data, previewUrl: URL.createObjectURL(file) });
+        };
+        reader.onerror = () => {
+            setError("Erreur lors de la lecture de l'image.");
         };
         reader.readAsDataURL(file);
         if(fileInputRef.current) fileInputRef.current.value = '';

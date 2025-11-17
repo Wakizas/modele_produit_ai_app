@@ -1,11 +1,3 @@
-
-
-
-
-
-
-
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UploadedImage } from '../types';
 
@@ -29,7 +21,7 @@ const fileToBase64 = (file: File): Promise<string> => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = error => reject(error);
+        reader.onerror = () => reject(new Error('Erreur lors de la lecture du fichier.'));
     });
 };
 
@@ -113,7 +105,8 @@ const extractFramesFromVideo = (videoFile: File, frameCount: number): Promise<{ 
                 resolve(frames);
 
             } catch (err) {
-                reject(err);
+                // FIX: Ensure a proper Error object is always rejected to avoid issues with `unknown` type downstream.
+                reject(err instanceof Error ? err : new Error(String(err ?? 'Unknown error extracting frames')));
             } finally {
                 cleanup();
             }
@@ -376,7 +369,6 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
         }
         onUploadConfirmed(finalImages);
     } catch(err) {
-        // FIX: The caught error `err` is of type `unknown` by default. Add a type guard to check if it's an instance of `Error` before accessing its properties like `message`.
         console.error("Processing error:", err);
         if (err instanceof Error) {
             setUploadError(`Une erreur est survenue lors du traitement : ${err.message}. Veuillez réessayer.`);
@@ -444,7 +436,7 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
               ))}
             </div>
              <button onClick={handleConfirm} disabled={isProcessing} className="w-full bg-secondary text-black font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:bg-yellow-400 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-500 disabled:cursor-not-allowed">
-                {isProcessing ? "Traitement en cours..." : "Analyser le produit"}
+                {isProcessing ? "Traitement en cours..." : "Confirmer et continuer"}
             </button>
           </div>
         )}

@@ -1,7 +1,6 @@
 export enum AppStep {
   Accueil,
   Upload,
-  ValidateDescription,
   Select,
   Generate,
   Results,

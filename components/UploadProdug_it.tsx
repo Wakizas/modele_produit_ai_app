@@ -1,17 +1,10 @@
-
-
-
-
-
-
-
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UploadedImage } from '../types';
 
 // ICONS
 const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-6 w-6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>;
 const CameraIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-6 w-6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>;
+// FIX: Corrected syntax error in viewBox attribute
 const VideoIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-6 w-6"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>;
 const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 const PlayIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3l14 9-14 9V3z"></path></svg>;
@@ -29,7 +22,7 @@ const fileToBase64 = (file: File): Promise<string> => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = error => reject(error);
+        reader.onerror = () => reject(new Error('Erreur lors de la lecture du fichier.'));
     });
 };
 
@@ -113,7 +106,8 @@ const extractFramesFromVideo = (videoFile: File, frameCount: number): Promise<{ 
                 resolve(frames);
 
             } catch (err) {
-                reject(err);
+                // FIX: Ensure a proper Error object is always rejected to avoid issues with `unknown` type downstream.
+                reject(err instanceof Error ? err : new Error(String(err ?? 'Unknown error extracting frames')));
             } finally {
                 cleanup();
             }
@@ -376,7 +370,6 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
         }
         onUploadConfirmed(finalImages);
     } catch(err) {
-        // FIX: The caught error `err` is of type `unknown` by default. Add a type guard to check if it's an instance of `Error` before accessing its properties like `message`.
         console.error("Processing error:", err);
         if (err instanceof Error) {
             setUploadError(`Une erreur est survenue lors du traitement : ${err.message}. Veuillez réessayer.`);

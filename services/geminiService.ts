@@ -14,47 +14,6 @@ function fileToGenerativePart(base64: string, mimeType: string) {
   };
 }
 
-export async function detectProductDescription(image: UploadedImage, maxRetries = 3): Promise<string> {
-  const model = 'gemini-2.5-flash';
-  const imagePart = fileToGenerativePart(image.base64, image.file.type);
-  const textPart = { text: "Décris brièvement le produit principal visible sur cette image en une phrase concise (15 mots max). Cible les caractéristiques clés pour la mode : type de vêtement, couleur, et style principal. Par exemple: 'T-shirt blanc en coton avec un logo rouge.' ou 'Robe de soirée longue et bleue en satin.'" };
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: { parts: [imagePart, textPart] },
-      });
-      const text = response.text;
-      if (!text || text.trim().length === 0) {
-        throw new Error('Empty API response for description');
-      }
-      return text.trim();
-    } catch (error) {
-      console.error(`Description detection attempt ${attempt}/${maxRetries} failed:`, error);
-      const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
-      
-      if (errorMessage.includes('safety')) {
-        throw new Error('SAFETY_BLOCK_DESCRIPTION');
-      }
-      if (errorMessage.includes('api key') || errorMessage.includes('billing')) {
-          throw error; // Non-retryable
-      }
-      
-      if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 500 + Math.random() * 500;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      } else {
-        if (errorMessage.includes('503') || errorMessage.includes('overloaded') || errorMessage.includes('quota')) {
-          throw new Error('MODEL_OVERLOADED');
-        }
-        throw new Error('RETRY_FAILED_DESCRIPTION');
-      }
-    }
-  }
-  throw new Error('RETRY_FAILED_DESCRIPTION');
-}
-
 // REFACTORED AND SIMPLIFIED PROMPT FOR BETTER RELIABILITY
 const generateImagePrompt = (options: ModelOptions, pose: string, productDescription: string): string => {
   const qualityPrompt = "Rendu ultra-réaliste, qualité photo professionnelle (8K). Attention aux détails de la peau, des textures de tissu et à un éclairage naturel. Le résultat ne doit pas avoir l'air artificiel.";
@@ -159,7 +118,7 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const response = await ai.models.generateContent({
-        // FIX: The `gemini-1.5-flash-image` model is deprecated. Use `gemini-2.5-flash-image` instead.
+        // FIX: The `gemini-pro-vision` model is deprecated for this task. Use `gemini-2.5-flash-image` for image generation.
         model: 'gemini-2.5-flash-image',
         contents: { parts: [...imageParts, textPart] },
         config: {

@@ -4,23 +4,13 @@ import { UploadedImage } from '../types';
 interface ValidateDescriptionProps {
   productImages: UploadedImage[];
   initialDescription: string;
-  isDetecting: boolean;
   onConfirm: (description: string) => void;
-  error: string;
-  onRetry: () => void;
 }
-
-const LoadingSpinner = () => (
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
-);
 
 const ValidateDescription: React.FC<ValidateDescriptionProps> = ({ 
     productImages, 
     initialDescription, 
-    isDetecting, 
-    onConfirm,
-    error,
-    onRetry
+    onConfirm
 }) => {
   const [description, setDescription] = useState(initialDescription);
 
@@ -34,13 +24,11 @@ const ValidateDescription: React.FC<ValidateDescriptionProps> = ({
       }
   }
 
-  const isRetryableError = error && (error.includes('surchargé') || error.includes('instable'));
-
   return (
     <div className="flex flex-col items-center max-w-3xl mx-auto">
-      <h2 className="text-3xl font-bold text-white mb-2">Étape 2 : Validation du produit</h2>
+      <h2 className="text-3xl font-bold text-white mb-2">Étape 2 : Description du produit</h2>
       <p className="text-gray-400 mb-6 text-center">
-        Notre IA a identifié votre produit. Validez ou modifiez la description pour que nos modèles adoptent les meilleures poses.
+        Décrivez votre produit pour que nos modèles adoptent les meilleures poses. Une bonne description est la clé !
       </p>
       
       <div className="w-full p-6 bg-dark-card/50 rounded-2xl shadow-lg">
@@ -52,45 +40,23 @@ const ValidateDescription: React.FC<ValidateDescriptionProps> = ({
             ))}
         </div>
 
-        {isDetecting ? (
-            <div className="flex flex-col items-center justify-center h-24">
-                <LoadingSpinner />
-                <p className="mt-4 text-gray-400">Analyse de l'image en cours...</p>
-            </div>
-        ) : (
-            <>
-                <label htmlFor="description" className="block text-lg font-semibold text-accent mb-2">Description du produit :</label>
-                <textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full p-3 bg-gray-900 border-2 border-gray-700 rounded-lg text-white focus:border-accent focus:ring-accent transition"
-                    rows={3}
-                    placeholder="Ex: T-shirt noir en coton avec un motif..."
-                />
-                {error && (
-                    <div className="mt-2 text-sm text-red-400 text-center bg-red-900/20 py-2 px-3 rounded-lg">
-                        <p>{error}</p>
-                        {isRetryableError && (
-                             <button
-                                onClick={onRetry}
-                                className="mt-2 bg-primary text-white font-bold py-1 px-4 rounded-md text-xs hover:bg-accent transition-colors"
-                            >
-                                Réessayer
-                            </button>
-                        )}
-                    </div>
-                )}
+        <label htmlFor="description" className="block text-lg font-semibold text-accent mb-2">Description du produit :</label>
+        <textarea
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full p-3 bg-gray-900 border-2 border-gray-700 rounded-lg text-white focus:border-accent focus:ring-accent transition"
+            rows={3}
+            placeholder="Ex: T-shirt noir en coton avec un motif..."
+        />
                 
-                <button
-                    onClick={handleConfirm}
-                    disabled={!description.trim()}
-                    className="w-full mt-6 bg-secondary text-black font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:bg-yellow-400 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed"
-                >
-                    Valider et continuer
-                </button>
-            </>
-        )}
+        <button
+            onClick={handleConfirm}
+            disabled={!description.trim()}
+            className="w-full mt-6 bg-secondary text-black font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:bg-yellow-400 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed"
+        >
+            Valider et continuer
+        </button>
       </div>
     </div>
   );
