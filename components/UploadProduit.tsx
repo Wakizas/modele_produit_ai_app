@@ -198,7 +198,7 @@ const VideoRecorderModal: React.FC<{onClose: () => void, onCapture: (video: Medi
         mediaRecorderRef.current.start();
         
         setCountdown(5);
-        countdownIntervalRef.current = setInterval(() => {
+        countdownIntervalRef.current = window.setInterval(() => {
             setCountdown(prev => {
                 if(prev <= 1) {
                     stopRecording();
@@ -232,7 +232,7 @@ const VideoRecorderModal: React.FC<{onClose: () => void, onCapture: (video: Medi
                 <h3 className="text-xl font-bold text-white mb-4">{recordedBlob ? "Aperçu de la vidéo" : "Filmer votre produit"}</h3>
                 {error ? <p className="text-red-400">{error}</p> : (
                     <div className="relative">
-                        <video ref={videoRef} autoPlay={!recordedBlob} playsInline muted loop={!!recordedBlob} src={recordedBlob ? URL.createObjectURL(recordedBlob) : undefined} className="w-full rounded-lg" />
+                        <video ref={videoRef} autoPlay playsInline muted loop={!!recordedBlob} src={recordedBlob ? URL.createObjectURL(recordedBlob) : undefined} className="w-full rounded-lg" />
                         {isRecording && <div className="absolute top-2 right-2 bg-red-500 text-white font-bold rounded-full h-8 w-8 flex items-center justify-center animate-pulse">{countdown}</div>}
                     </div>
                 )}
@@ -332,8 +332,14 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
         }
         onUploadConfirmed(finalImages);
     } catch(err) {
+        // FIX: Add type checking for the caught error. Promises can reject with non-Error objects.
+        // This prevents runtime errors from trying to access properties like 'type' on an 'unknown' value.
         console.error("Processing error:", err);
-        setUploadError("Une erreur est survenue lors du traitement de votre média. Veuillez réessayer.");
+        if (err instanceof Error) {
+            setUploadError(`Une erreur est survenue lors du traitement : ${err.message}. Veuillez réessayer.`);
+        } else {
+            setUploadError("Une erreur est survenue lors du traitement de votre média. Veuillez réessayer.");
+        }
         setIsProcessing(false);
     }
   }

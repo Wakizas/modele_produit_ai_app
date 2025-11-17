@@ -205,6 +205,16 @@ const ambiances = [
     { value: 'Nuit urbaine néon', label: 'Nuit urbaine' },
     { value: 'Plage tropicale ensoleillée', label: 'Plage tropicale' },
     { value: 'Intérieur minimaliste (lumière douce)', label: 'Intérieur minimaliste' },
+    { value: 'Rooftop avec vue sur la ville au coucher du soleil', label: 'Rooftop Coucher de Soleil' },
+    { value: 'Forêt luxuriante avec rayons de soleil', label: 'Forêt Enchantée' },
+    { value: 'Rue pavée de style parisien', label: 'Rue Parisienne' },
+    { value: 'Mur de graffitis colorés et artistiques', label: 'Art Urbain' },
+    { value: 'Bibliothèque ancienne avec étagères en bois', label: 'Bibliothèque Ancienne' },
+    { value: 'Loft industriel avec murs en briques', label: 'Loft Industriel' },
+    { value: 'Paysage désertique au lever du soleil', label: 'Désert Solaire' },
+    { value: 'Jardin botanique exotique', label: 'Jardin Exotique' },
+    { value: 'Intérieur d\'un riad marocain avec zelliges', label: 'Riad Marocain' },
+    { value: 'Fond de couleur vive et unie (bleu électrique)', label: 'Fond Uni Vibrant' },
 ];
 
 const tonsMarketing = [
