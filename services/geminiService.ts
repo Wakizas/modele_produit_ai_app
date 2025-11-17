@@ -70,47 +70,88 @@ Prompt: Crée une image photoréaliste de qualité professionnelle d'un mannequi
 
 
 const POSES_MAPPING: { [key: string]: string[] } = {
-    'default': [
+    'vêtement': [
         "Pose de face, naturelle et élégante, regardant la caméra avec confiance.",
         "De trois-quarts, une main sur la hanche, mettant en valeur la coupe du vêtement.",
-        "En mouvement, comme si le modèle marchait nonchalamment vers la caméra, créant un effet dynamique.",
+        "En mouvement, comme si le modèle marchait nonchalamment vers la caméra.",
         "Assis sur un cube simple, coude sur le genou, pose décontractée mais chic.",
-        "De dos, regardant par-dessus l'épaule, idéal pour montrer les détails arrière d'un vêtement."
+        "De dos, regardant par-dessus l'épaule, pour montrer les détails arrière."
     ],
-    'montre|bijou|bracelet|bague': [
-        "Gros plan sur le poignet ou la main pour mettre en évidence le bijou, le visage du modèle étant en arrière-plan flou.",
-        "Le modèle ajuste son col de chemise ou sa cravate, rendant la montre/bracelet bien visible.",
-        "Main posée nonchalamment sur le menton, exposant clairement le produit au poignet.",
+    'bijou': [
+        "Gros plan sur le poignet pour une montre/bracelet, visage en arrière-plan flou.",
+        "Main posée délicatement sur le cou pour mettre en valeur un collier.",
+        "Portrait en gros plan, main près de l'oreille pour montrer des boucles d'oreilles.",
+        "Main posée nonchalamment sur le menton, exposant une bague.",
+        "Le modèle ajuste son col de chemise, rendant un bijou de poignet bien visible."
     ],
-    'chaussures|baskets|sandales|talons|bottes': [
-        "Une jambe croisée sur l'autre en position assise, pour un gros plan sur la chaussure.",
-        "Le modèle fait un pas en avant, la caméra étant au niveau du sol pour focaliser sur les chaussures.",
-        "Adossé à un mur, une jambe pliée, la semelle de la chaussure visible.",
+    'chaussures': [
+        "Une jambe croisée sur l'autre en position assise, gros plan sur la chaussure.",
+        "Le modèle fait un pas en avant, caméra au niveau du sol.",
+        "Adossé à un mur, une jambe pliée, la semelle visible.",
+        "Assis sur des marches, les pieds au premier plan pour un look urbain.",
+        "En train de sauter, montrant la flexibilité (pour des baskets)."
     ],
-     'sac|sacoche|cartable|pochette': [
-        "Le sac tenu à la main, le bras le long du corps, vue de face.",
+    'sac': [
+        "Le sac tenu à la main, bras le long du corps, vue de face.",
         "Le sac porté à l'épaule, le modèle de trois-quarts pour montrer comment il tombe.",
         "Le modèle en train de marcher, le sac en mouvement naturel.",
+        "Gros plan sur le sac posé à côté du modèle assis.",
+        "En bandoulière, le modèle interagissant avec le sac."
     ],
     'lunettes': [
         "Portrait de face, le modèle ajustant les lunettes sur son nez.",
-        "Profil du visage, pour montrer le design des branches des lunettes.",
-        "Le modèle regarde au loin, donnant un aspect naturel au port des lunettes.",
+        "Profil du visage, pour montrer le design des branches.",
+        "Le modèle regarde au loin, donnant un aspect naturel.",
+        "Vue de dessus, le modèle regardant vers le haut, créant un effet dramatique.",
+        "Le modèle tenant les lunettes à la main, regard pensif."
+    ],
+    'cosmétique': [
+        "Portrait beauté en gros plan, mettant en valeur le maquillage (lèvres, yeux).",
+        "Le modèle appliquant délicatement le produit (crème, sérum) sur son visage.",
+        "Main tenant le flacon du produit près du visage, focus sur le packaging.",
+        "Sourire radieux montrant un teint parfait grâce à un fond de teint.",
+        "Vue de profil pour mettre en avant un highlighter sur les pommettes."
+    ],
+    'default': [
+        "Pose de face, naturelle et élégante, regardant la caméra avec confiance.",
+        "De trois-quarts, une main sur la hanche, pour un look classique.",
+        "En mouvement, comme si le modèle marchait nonchalamment vers la caméra.",
+        "Assis sur un cube simple, coude sur le genou, pose décontractée.",
+        "Portrait en buste, regard direct et confiant."
     ]
 };
 
-function getPosesForProduct(description: string): string[] {
-    const lowerCaseDescription = description.toLowerCase();
-    if (!lowerCaseDescription) return POSES_MAPPING['default'];
-    for (const key in POSES_MAPPING) {
-        if (key === 'default') continue;
-        const keywords = key.split('|');
-        if (keywords.some(keyword => lowerCaseDescription.includes(keyword))) {
-            return POSES_MAPPING[key];
-        }
-    }
-    return POSES_MAPPING['default'];
+function getPosesForProduct(category: string): string[] {
+    const lowerCaseCategory = category.toLowerCase();
+    // Assurer que le tableau retourné a toujours 5 éléments pour la cohérence de l'interface utilisateur
+    const poses = POSES_MAPPING[lowerCaseCategory] || POSES_MAPPING['default'];
+    return poses.slice(0, 5);
 }
+
+async function getProductCategory(imageParts: any[]): Promise<string> {
+  const model = 'gemini-2.5-flash';
+  const prompt = `Analyse l'image du produit fournie et identifie sa catégorie. Réponds avec UN SEUL mot parmi les suivants : vêtement, bijou, chaussures, sac, lunettes, cosmétique. Si tu ne peux pas déterminer la catégorie ou s'il s'agit d'autre chose, réponds 'default'.`;
+  
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: { parts: [...imageParts, { text: prompt }] }
+    });
+    const text = response.text.trim().toLowerCase().replace(/[^\w]/g, ''); // Nettoyer la réponse
+    
+    const validCategories = ['vêtement', 'bijou', 'chaussures', 'sac', 'lunettes', 'cosmétique', 'default'];
+    if (validCategories.includes(text)) {
+      return text;
+    }
+    
+    console.warn(`Catégorie non valide retournée par l'IA : "${text}". Utilisation de la catégorie par défaut.`);
+    return 'default';
+  } catch (error) {
+    console.error("Erreur lors de l'analyse de la catégorie du produit:", error);
+    return 'default'; // Retourner la valeur par défaut en cas d'échec de l'analyse
+  }
+}
+
 
 async function generateSingleImageWithRetry(imageParts: any[], options: ModelOptions, pose: string, productDescription: string, maxRetries = 2): Promise<string> {
   const prompt = generateImagePrompt(options, pose, productDescription);
@@ -184,7 +225,14 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
 async function generateMarketingCaption(imageParts: any[], options: ModelOptions, productDescription: string, maxRetries = 3): Promise<string> {
   const model = 'gemini-2.5-flash';
 
-  const prompt = `Analyse les images du produit fournies. Basé sur ces images, crée une courte légende marketing (2 phrases max), en français, pour une publication Instagram. Le produit est visible sur les images. La légende doit mettre en valeur ce produit avec un style "${options.style}". Inclus un appel à l'action. Le ton doit être ${options.tonMarketing}.`;
+  const prompt = `Tâche : Rédiger une légende marketing pour Instagram.
+Contexte : Tu es un expert en marketing digital. Tu dois analyser les images fournies pour comprendre le produit. Aucune description textuelle du produit n'est fournie, base-toi uniquement sur le visuel.
+Instructions :
+1. Rédige une légende courte et percutante (2 phrases maximum) en français.
+2. Incorpore un style qui est "${options.style}".
+3. Adopte un ton qui est "${options.tonMarketing}".
+4. Termine par un appel à l'action clair (ex: "Shoppez le look !", "Découvrez la collection en bio.").
+Réponds uniquement avec la légende finale.`;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -245,6 +293,10 @@ export async function generateImagesAndCaption(
   // Parts for caption generation (product only)
   const productImageParts = uploadedImages.map(img => fileToGenerativePart(img.base64, img.file.type));
   
+  // Analyser les images du produit pour déterminer la catégorie pour les poses
+  const productCategory = await getProductCategory(productImageParts);
+  console.log(`Catégorie du produit détectée : ${productCategory}`);
+
   // Parts for image generation (product + optional face)
   const allImageParts = [...productImageParts];
   if (options.useMyFace && faceImage) {
@@ -252,7 +304,7 @@ export async function generateImagesAndCaption(
       allImageParts.push(facePart);
   }
   
-  const POSES = getPosesForProduct(productDescription);
+  const POSES = getPosesForProduct(productCategory);
   const totalPoses = POSES.length;
 
   onProgress(0);

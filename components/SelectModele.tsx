@@ -186,20 +186,34 @@ const FaceUploader: React.FC<{ faceImage: UploadedImage | null; setFaceImage: (i
     );
 };
 
-
-const morphologies = [
+const morphologiesFemme = [
   { value: 'mince', label: 'Mince' },
   { value: 'standard', label: 'Standard' },
   { value: 'athlétique', label: 'Athlétique' },
-  { value: 'enrobée', label: 'Enrobée' },
+  { value: 'enrobée', label: 'Pulpeuse / Enrobée' },
+  { value: 'grande et élancée', label: 'Grande et élancée' },
+  { value: 'petite', label: 'Petite' },
+];
+
+const morphologiesHomme = [
+  { value: 'mince', label: 'Mince' },
+  { value: 'standard', label: 'Standard' },
+  { value: 'athlétique', label: 'Musclé / Athlétique' },
+  { value: 'robuste', label: 'Robuste / Trapu' },
+  { value: 'grand et fin', label: 'Grand et fin' },
 ];
 
 const styles = [
   { value: 'casual', label: 'Casual' },
   { value: 'professionnel', label: 'Professionnel' },
   { value: 'chic', label: 'Chic' },
-  { value: 'traditionnel', label: 'Traditionnel' },
+  { value: 'streetwear', label: 'Streetwear' },
   { value: 'sportif', label: 'Sportif' },
+  { value: 'haute couture', label: 'Haute Couture' },
+  { value: 'bohème', label: 'Bohème' },
+  { value: 'minimaliste', label: 'Minimaliste' },
+  { value: 'vintage', label: 'Vintage' },
+  { value: 'traditionnel', label: 'Traditionnel' },
 ];
 
 const ambiances = [
@@ -250,6 +264,18 @@ const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptio
   }
 
   const isRetryableError = error && (error.includes('surchargé') || error.includes('échoué'));
+  
+  const currentMorphologies = modelOptions.sexe === 'Femme' ? morphologiesFemme : morphologiesHomme;
+
+  useEffect(() => {
+    // Si la morphologie sélectionnée n'existe pas dans la nouvelle liste (après un changement de sexe),
+    // on la réinitialise à 'standard'.
+    const currentMorphologyIsValid = currentMorphologies.some(m => m.value === modelOptions.morphologie);
+    if (!currentMorphologyIsValid) {
+        handleOptionChange('morphologie', 'standard');
+    }
+  }, [modelOptions.sexe]);
+
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -298,12 +324,12 @@ const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptio
                 <OptionSelector label="Sexe" options={[{value: 'Femme', label: 'Femme'}, {value: 'Homme', label: 'Homme'}]} selected={modelOptions.sexe} onChange={(v) => handleOptionChange('sexe', v)} />
                 <OptionSelector label="Teinte de peau" options={teintesPeau} selected={modelOptions.typeDePeau} onChange={(v) => handleOptionChange('typeDePeau', v)} />
                 <OptionSelector label="Origine ethnique" options={['Afrique de l’Ouest', 'Afrique du Nord', 'Afrique Centrale', 'Afrique de l’Est', 'Afrique Australe', 'Afro-américain', 'Afro-caribéen'].map(v => ({value: v, label: v}))} selected={modelOptions.origineEthnique} onChange={(v) => handleOptionChange('origineEthnique', v)} />
-                <OptionSelector label="Âge" options={['20-25 ans', '25-35 ans', '35-45 ans', '45+ ans'].map(v => ({value: v, label: v}))} selected={modelOptions.age} onChange={(v) => handleOptionChange('age', v)} />
+                <OptionSelector label="Âge" options={['20-25 ans', '25-35 ans', '35-45 ans', '45-55 ans', '55-65 ans', '65+ ans'].map(v => ({value: v, label: v}))} selected={modelOptions.age} onChange={(v) => handleOptionChange('age', v)} />
                 <OptionSelector label="Expression" options={['neutre', 'sourire léger', 'confiant', 'sérieux', 'joyeux'].map(v => ({value: v, label: v}))} selected={modelOptions.expression} onChange={(v) => handleOptionChange('expression', v)} />
             </>
           )}
 
-          <OptionSelector label="Morphologie" options={morphologies} selected={modelOptions.morphologie} onChange={(v) => handleOptionChange('morphologie', v)} />
+          <OptionSelector label="Morphologie" options={currentMorphologies} selected={modelOptions.morphologie} onChange={(v) => handleOptionChange('morphologie', v)} />
           <OptionSelector label="Style vestimentaire" options={styles} selected={modelOptions.style} onChange={(v) => handleOptionChange('style', v)} />
           <OptionSelector label="Ambiance et Lumière" options={ambiances} selected={modelOptions.ambiance} onChange={(v) => handleOptionChange('ambiance', v)} />
           <OptionSelector label="Ton Marketing" options={tonsMarketing} selected={modelOptions.tonMarketing} onChange={(v) => handleOptionChange('tonMarketing', v)} />

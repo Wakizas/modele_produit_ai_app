@@ -46,7 +46,7 @@ const extractFramesFromVideo = (videoFile: File, frameCount: number): Promise<{ 
         timeoutId = window.setTimeout(() => {
             cleanup();
             reject(new Error("Le traitement de la vidéo a expiré (20s)."));
-        }, 20000);
+        }, 2022);
 
         video.onerror = () => {
             cleanup();
@@ -104,12 +104,13 @@ const extractFramesFromVideo = (videoFile: File, frameCount: number): Promise<{ 
                 
                 resolve(frames);
 
-            } catch (err) {
-                // FIX: Ensure a proper Error object is always rejected to avoid issues with `unknown` type downstream.
+            // FIX: Correctly handle unknown error types to prevent crashes.
+            // This ensures that a proper Error object is always rejected.
+            } catch (err: unknown) {
                 if (err instanceof Error) {
-                  reject(err);
+                  reject(new Error(`Video frame extraction failed: ${err.message}`));
                 } else {
-                  reject(new Error(String(err ?? 'Unknown error extracting frames')));
+                  reject(new Error(`An unknown error occurred during video frame extraction: ${String(err)}`));
                 }
             } finally {
                 cleanup();
