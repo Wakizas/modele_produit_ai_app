@@ -31,7 +31,7 @@ Prompt: Crée une image photoréaliste d'un mannequin avec les caractéristiques
 1.  **Visage (Priorité Absolue):** Le visage du mannequin doit être une **copie exacte** de celui de l'image de référence. La forme des yeux, du nez, de la bouche, le grain de peau doivent être identiques. Le teint de la peau du corps entier (cou, mains, etc.) doit correspondre parfaitement à celui du visage.
 
 2.  **Mannequin & Produit:**
-    -   **Produit à porter:** ${productDescription}. Le produit est visible dans les images fournies.
+    -   **Produit à porter:** ${productDescription || 'Le produit visible dans les images fournies'}.
     -   **Morphologie du corps:** ${options.morphologie}.
     -   **Style général:** ${options.style}.
     -   **Pose:** "${pose}".
@@ -55,7 +55,7 @@ Prompt: Crée une image photoréaliste de qualité professionnelle d'un mannequi
 -   **Expression Faciale:** ${options.expression}
 
 **2. Détails du Produit & Style:**
--   **Produit à porter:** ${productDescription}. Le produit est visible dans les images fournies.
+-   **Produit à porter:** ${productDescription || 'Le produit visible dans les images fournies'}.
 -   **Style vestimentaire général:** ${options.style}.
 
 **3. Scène & Pose:**
@@ -101,6 +101,7 @@ const POSES_MAPPING: { [key: string]: string[] } = {
 
 function getPosesForProduct(description: string): string[] {
     const lowerCaseDescription = description.toLowerCase();
+    if (!lowerCaseDescription) return POSES_MAPPING['default'];
     for (const key in POSES_MAPPING) {
         if (key === 'default') continue;
         const keywords = key.split('|');
@@ -180,16 +181,16 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
 }
 
 
-async function generateMarketingCaption(options: ModelOptions, productDescription: string, maxRetries = 3): Promise<string> {
+async function generateMarketingCaption(imageParts: any[], options: ModelOptions, productDescription: string, maxRetries = 3): Promise<string> {
   const model = 'gemini-2.5-flash';
 
-  const prompt = `Crée une courte légende marketing (2 phrases max), en français, pour une publication Instagram. Le produit est : "${productDescription}". La légende doit mettre en valeur ce produit avec un style "${options.style}". Inclus un appel à l'action. Le ton doit être ${options.tonMarketing}.`;
+  const prompt = `Analyse les images du produit fournies. Basé sur ces images, crée une courte légende marketing (2 phrases max), en français, pour une publication Instagram. Le produit est visible sur les images. La légende doit mettre en valeur ce produit avec un style "${options.style}". Inclus un appel à l'action. Le ton doit être ${options.tonMarketing}.`;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const response = await ai.models.generateContent({
         model,
-        contents: prompt
+        contents: { parts: [...imageParts, { text: prompt }] }
       });
       const text = response.text;
       if (!text || text.trim().length === 0) {
@@ -241,11 +242,14 @@ export async function generateImagesAndCaption(
   onImageGenerated: (image: string, index: number) => void,
   faceImage: UploadedImage | null
 ) {
-  const imageParts = uploadedImages.map(img => fileToGenerativePart(img.base64, img.file.type));
-
+  // Parts for caption generation (product only)
+  const productImageParts = uploadedImages.map(img => fileToGenerativePart(img.base64, img.file.type));
+  
+  // Parts for image generation (product + optional face)
+  const allImageParts = [...productImageParts];
   if (options.useMyFace && faceImage) {
       const facePart = fileToGenerativePart(faceImage.base64, faceImage.file.type);
-      imageParts.push(facePart);
+      allImageParts.push(facePart);
   }
   
   const POSES = getPosesForProduct(productDescription);
@@ -263,14 +267,14 @@ export async function generateImagesAndCaption(
   };
 
   const imageGenerationPromises = POSES.map((pose, index) =>
-    generateSingleImageWithRetry(imageParts, options, pose, productDescription).then(image => {
+    generateSingleImageWithRetry(allImageParts, options, pose, productDescription).then(image => {
       onImageGenerated(image, index);
       updateProgress();
       return image;
     })
   );
 
-  const captionPromise = generateMarketingCaption(options, productDescription).then(caption => {
+  const captionPromise = generateMarketingCaption(productImageParts, options, productDescription).then(caption => {
     updateProgress();
     return caption;
   });

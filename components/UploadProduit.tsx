@@ -106,7 +106,11 @@ const extractFramesFromVideo = (videoFile: File, frameCount: number): Promise<{ 
 
             } catch (err) {
                 // FIX: Ensure a proper Error object is always rejected to avoid issues with `unknown` type downstream.
-                reject(err instanceof Error ? err : new Error(String(err ?? 'Unknown error extracting frames')));
+                if (err instanceof Error) {
+                  reject(err);
+                } else {
+                  reject(new Error(String(err ?? 'Unknown error extracting frames')));
+                }
             } finally {
                 cleanup();
             }
