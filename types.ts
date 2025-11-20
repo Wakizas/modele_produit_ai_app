@@ -1,9 +1,14 @@
+
 export enum AppStep {
   Accueil,
+  Auth,
   Upload,
   Select,
   Generate,
   Results,
+  Profile,
+  Admin,
+  Community,
 }
 
 export interface ModelOptions {
@@ -23,4 +28,16 @@ export interface UploadedImage {
   file: File;
   base64: string;
   previewUrl: string;
+}
+
+export interface CommunityCreation {
+  id: string;
+  style: string;
+  ambiance: string;
+  morphologie: string;
+  likes: number;
+  likedBy?: string[]; // Array of user IDs who liked this
+  author: string;
+  gradient: string;
+  authorUid: string;
 }

@@ -1,6 +1,13 @@
 import React from 'react';
 import MainApp from './MainApp';
+import { AuthProvider } from './contexts/AuthContext';
 
-export default function App() {
-  return <MainApp />;
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
+  );
 }
+
+export default App;

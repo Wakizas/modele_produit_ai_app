@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Modality } from '@google/genai';
 import { ModelOptions, UploadedImage } from '../types';
 
@@ -12,6 +13,33 @@ function fileToGenerativePart(base64: string, mimeType: string) {
       mimeType,
     },
   };
+}
+
+// Helper function for generating content with retry logic for 503 errors
+async function generateTextWithRetry(model: string, parts: any[], maxRetries = 3): Promise<string | undefined> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: { parts }
+      });
+      return response.text;
+    } catch (error: any) {
+      const msg = error.message?.toLowerCase() || '';
+      // Check for 503 Service Unavailable or Overloaded errors
+      if (msg.includes('503') || msg.includes('overloaded')) {
+        if (attempt < maxRetries) {
+           // Exponential backoff: 2s, 4s, 8s...
+           const delay = 1000 * Math.pow(2, attempt);
+           console.warn(`Model overloaded (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`);
+           await new Promise(resolve => setTimeout(resolve, delay));
+           continue;
+        }
+      }
+      throw error;
+    }
+  }
+  return undefined;
 }
 
 // REFACTORED AND SIMPLIFIED PROMPT FOR BETTER RELIABILITY
@@ -133,18 +161,17 @@ async function getProductCategory(imageParts: any[]): Promise<string> {
   const prompt = `Analyse l'image du produit fournie et identifie sa catégorie. Réponds avec UN SEUL mot parmi les suivants : vêtement, bijou, chaussures, sac, lunettes, cosmétique. Si tu ne peux pas déterminer la catégorie ou s'il s'agit d'autre chose, réponds 'default'.`;
   
   try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: { parts: [...imageParts, { text: prompt }] }
-    });
-    const text = response.text.trim().toLowerCase().replace(/[^\w]/g, ''); // Nettoyer la réponse
+    // Use the retry helper to handle 503 errors
+    const text = await generateTextWithRetry(model, [...imageParts, { text: prompt }]);
     
+    if (!text) return 'default';
+
+    const cleanedText = text.trim().toLowerCase().replace(/[^\w]/g, ''); // Nettoyer la réponse
     const validCategories = ['vêtement', 'bijou', 'chaussures', 'sac', 'lunettes', 'cosmétique', 'default'];
-    if (validCategories.includes(text)) {
-      return text;
-    }
     
-    console.warn(`Catégorie non valide retournée par l'IA : "${text}". Utilisation de la catégorie par défaut.`);
+    if (validCategories.includes(cleanedText)) {
+      return cleanedText;
+    }
     return 'default';
   } catch (error) {
     console.error("Erreur lors de l'analyse de la catégorie du produit:", error);
@@ -153,14 +180,14 @@ async function getProductCategory(imageParts: any[]): Promise<string> {
 }
 
 
-async function generateSingleImageWithRetry(imageParts: any[], options: ModelOptions, pose: string, productDescription: string, maxRetries = 2): Promise<string> {
+async function generateSingleImageWithRetry(imageParts: any[], options: ModelOptions, pose: string, productDescription: string, maxRetries = 3): Promise<string> {
   const prompt = generateImagePrompt(options, pose, productDescription);
   const textPart = { text: prompt };
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const response = await ai.models.generateContent({
-        // FIX: The `gemini-pro-vision` model is deprecated for this task. Use `gemini-2.5-flash-image` for image generation.
+        // Utilisation du modèle Flash Image, optimisé pour la vitesse et le coût
         model: 'gemini-2.5-flash-image',
         contents: { parts: [...imageParts, textPart] },
         config: {
@@ -174,7 +201,7 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
         response.candidates[0].finishReason === 'SAFETY' ||
         response.candidates[0].finishReason === 'RECITATION'
       ) {
-        console.error('Image generation blocked due to safety/recitation.', { finishReason: response.candidates?.[0]?.finishReason, promptFeedback: response.promptFeedback });
+        console.error('Image generation blocked due to safety/recitation.', { finishReason: response.candidates?.[0]?.finishReason });
         throw new Error('SAFETY_BLOCK_GENERATION');
       }
 
@@ -183,36 +210,36 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
         return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
       }
       
-      console.error('No image data in valid response:', response);
       throw new Error('NO_IMAGE_DATA');
     } catch (error) {
       console.error(`Attempt ${attempt}/${maxRetries} failed for pose "${pose}":`, error);
       
       const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
       
-      if (errorMessage.includes('safety')) {
-          throw new Error('SAFETY_BLOCK_GENERATION');
-      }
-      if (errorMessage.includes('api key not valid')) {
-           throw new Error('API_KEY_INVALID');
-      }
-      if (errorMessage.includes('billing')) {
-           throw new Error('BILLING_NOT_ENABLED');
-      }
-       if (errorMessage.includes('429') || errorMessage.includes('quota')) {
-           throw new Error('QUOTA_EXCEEDED');
-      }
+      if (errorMessage.includes('safety')) throw new Error('SAFETY_BLOCK_GENERATION');
+      if (errorMessage.includes('api key')) throw new Error('API_KEY_INVALID');
+      if (errorMessage.includes('billing')) throw new Error('BILLING_NOT_ENABLED');
       
+      // Gestion spécifique des quotas pour le plan gratuit et surcharge
+      const isQuotaExceeded = errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('resource_exhausted');
       const isOverloaded = errorMessage.includes('503') || errorMessage.includes('overloaded');
 
+      if (isQuotaExceeded || isOverloaded) {
+           // Si quota dépassé ou surchargé, on attend plus longtemps avant de réessayer
+           if (attempt < maxRetries) {
+               const delay = isOverloaded ? Math.pow(2, attempt) * 1000 : 5000; // Exponential for overload, fixed 5s for quota
+               console.warn(`Service busy/quota hit (attempt ${attempt}), waiting ${delay}ms...`);
+               await new Promise(resolve => setTimeout(resolve, delay)); 
+               continue;
+           }
+           if (isOverloaded) throw new Error('MODEL_OVERLOADED');
+           throw new Error('QUOTA_EXCEEDED');
+      }
+
       if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-        console.warn(`Retrying in ${Math.round(delay / 1000)}s...`);
+        const delay = Math.pow(2, attempt) * 1000;
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
-        if (isOverloaded) {
-          throw new Error('MODEL_OVERLOADED');
-        }
         throw new Error('RETRY_FAILED_GENERATION');
       }
     }
@@ -222,64 +249,26 @@ async function generateSingleImageWithRetry(imageParts: any[], options: ModelOpt
 }
 
 
-async function generateMarketingCaption(imageParts: any[], options: ModelOptions, productDescription: string, maxRetries = 3): Promise<string> {
+async function generateMarketingCaption(imageParts: any[], options: ModelOptions, productDescription: string): Promise<string> {
   const model = 'gemini-2.5-flash';
 
   const prompt = `Tâche : Rédiger une légende marketing pour Instagram.
-Contexte : Tu es un expert en marketing digital. Tu dois analyser les images fournies pour comprendre le produit. Aucune description textuelle du produit n'est fournie, base-toi uniquement sur le visuel.
+Contexte : Tu es un expert en marketing digital. Tu dois analyser les images fournies pour comprendre le produit.
 Instructions :
 1. Rédige une légende courte et percutante (2 phrases maximum) en français.
 2. Incorpore un style qui est "${options.style}".
 3. Adopte un ton qui est "${options.tonMarketing}".
-4. Termine par un appel à l'action clair (ex: "Shoppez le look !", "Découvrez la collection en bio.").
+4. Termine par un appel à l'action clair.
 Réponds uniquement avec la légende finale.`;
   
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: { parts: [...imageParts, { text: prompt }] }
-      });
-      const text = response.text;
-      if (!text || text.trim().length === 0) {
-        throw new Error('Empty API response for caption');
-      }
-      return text.trim();
-    } catch (error) {
-      console.error(`Caption generation attempt ${attempt}/${maxRetries} failed:`, error);
-      
-      const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
-
-      // Non-retryable errors
-      if (errorMessage.includes('safety')) {
-          throw new Error('SAFETY_BLOCK_CAPTION');
-      }
-      if (errorMessage.includes('api key not valid')) {
-           throw new Error('API_KEY_INVALID');
-      }
-      if (errorMessage.includes('billing')) {
-           throw new Error('BILLING_NOT_ENABLED');
-      }
-      
-      const isOverloaded = errorMessage.includes('503') || errorMessage.includes('overloaded');
-      const isQuotaExceeded = errorMessage.includes('429') || errorMessage.includes('quota');
-
-      if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 500 + Math.random() * 500;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      } else {
-        console.error('Failed to generate marketing caption after retries.');
-        if (isOverloaded) {
-          throw new Error('MODEL_OVERLOADED');
-        }
-        if (isQuotaExceeded) {
-          throw new Error('QUOTA_EXCEEDED');
-        }
-        throw new Error('RETRY_FAILED_CAPTION');
-      }
-    }
+  try {
+    // Use the retry helper to handle 503 errors
+    const text = await generateTextWithRetry(model, [...imageParts, { text: prompt }]);
+    return text?.trim() || "Découvrez notre nouvelle collection !";
+  } catch (error) {
+    console.error("Caption generation failed:", error);
+    return "Sublimez votre style avec notre nouvelle collection.";
   }
-  throw new Error('RETRY_FAILED_CAPTION'); // Should not be reached
 }
 
 export async function generateImagesAndCaption(
@@ -290,14 +279,13 @@ export async function generateImagesAndCaption(
   onImageGenerated: (image: string, index: number) => void,
   faceImage: UploadedImage | null
 ) {
-  // Parts for caption generation (product only)
   const productImageParts = uploadedImages.map(img => fileToGenerativePart(img.base64, img.file.type));
   
-  // Analyser les images du produit pour déterminer la catégorie pour les poses
+  // 1. Analyse de catégorie (Coût: 1 requête texte - très faible)
+  // Now robust against 503 errors
   const productCategory = await getProductCategory(productImageParts);
-  console.log(`Catégorie du produit détectée : ${productCategory}`);
+  console.log(`Catégorie: ${productCategory}`);
 
-  // Parts for image generation (product + optional face)
   const allImageParts = [...productImageParts];
   if (options.useMyFace && faceImage) {
       const facePart = fileToGenerativePart(faceImage.base64, faceImage.file.type);
@@ -305,56 +293,47 @@ export async function generateImagesAndCaption(
   }
   
   const POSES = getPosesForProduct(productCategory);
-  const totalPoses = POSES.length;
-
-  onProgress(0);
-
+  const totalTasks = POSES.length + 1; // +1 pour la caption
   let completedTasks = 0;
-  const totalTasks = totalPoses + 1; // N images + 1 caption
-
-  const updateProgress = () => {
-    completedTasks++;
-    const progress = Math.min(99, Math.round((completedTasks / totalTasks) * 100));
-    onProgress(progress);
-  };
-
-  const imageGenerationPromises = POSES.map((pose, index) =>
-    generateSingleImageWithRetry(allImageParts, options, pose, productDescription).then(image => {
-      onImageGenerated(image, index);
-      updateProgress();
-      return image;
-    })
-  );
-
-  const captionPromise = generateMarketingCaption(productImageParts, options, productDescription).then(caption => {
-    updateProgress();
-    return caption;
-  });
-
-  // Use Promise.allSettled to continue even if some images fail
-  const results = await Promise.allSettled([
-      ...imageGenerationPromises,
-      captionPromise
-  ]);
-
-  const successfulImages = results.slice(0, totalPoses)
-      .filter(r => r.status === 'fulfilled')
-      .map(r => (r as PromiseFulfilledResult<string>).value);
-
-  const captionResult = results[totalPoses];
-  const caption = captionResult.status === 'fulfilled' ? (captionResult as PromiseFulfilledResult<string>).value : "Découvrez ce produit exceptionnel ! Visitez notre boutique.";
-
-  if (captionResult.status === 'rejected') {
-    console.error("Marketing caption generation failed. Using a default caption. Reason:", captionResult.reason);
-  }
-
-  // If all image generations failed, we should throw an error.
-  if (successfulImages.length === 0) {
-      const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
-      throw firstError?.reason || new Error("ALL_GENERATIONS_FAILED");
-  }
   
+  onProgress(5);
+
+  // --- MODE SÉQUENTIEL (FREE TIER FRIENDLY) ---
+  // Pour éviter l'erreur 429 (Too Many Requests) du plan gratuit,
+  // nous générons les images une par une au lieu de tout lancer en parallèle.
+  
+  const successfulImages: string[] = [];
+
+  for (let i = 0; i < POSES.length; i++) {
+      try {
+          // Génération de l'image
+          const image = await generateSingleImageWithRetry(allImageParts, options, POSES[i], productDescription);
+          successfulImages.push(image);
+          onImageGenerated(image, i);
+      } catch (err) {
+          console.error(`Échec de la génération pour la pose ${i}:`, err);
+          // On continue même si une image échoue pour ne pas bloquer tout le processus
+      }
+      
+      completedTasks++;
+      onProgress(Math.round((completedTasks / totalTasks) * 90));
+
+      // PETITE PAUSE DE SÉCURITÉ
+      // Gemini Free Tier a une limite de requêtes par minute (RPM).
+      // Une pause de 1 à 2 secondes entre chaque requête lourde (image) aide à rester sous le radar.
+      if (i < POSES.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+  }
+
+  // 2. Génération de la légende (requête légère)
+  // Now robust against 503 errors
+  const caption = await generateMarketingCaption(productImageParts, options, productDescription);
   onProgress(100);
+
+  if (successfulImages.length === 0) {
+      throw new Error("Toutes les tentatives de génération ont échoué. Le service est peut-être surchargé ou votre quota est atteint.");
+  }
 
   return { images: successfulImages, caption };
 }

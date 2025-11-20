@@ -5,11 +5,11 @@
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <link rel="apple-touch-icon" href="/vite.svg">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
     <!-- Balises pour une meilleure expérience PWA et SEO -->
-    <meta name="description" content="Libérez le potentiel de vos produits avec des visuels afro-futuristes générés par IA. Créez des mannequins virtuels uniques qui incarnent votre marque." />
-    <meta name="theme-color" content="#7F00FF" />
+    <meta name="description" content="Libérez le potentiel de vos produits avec des visuels afro-futuristes générés par IA." />
+    <meta name="theme-color" content="#050505" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -18,24 +18,54 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              'primary': '#7F00FF', // Deep violet
-              'accent': '#BF40BF', // Neon purple glow
-              'secondary': '#FFB800', // Soft gold
-              'dark-bg-start': '#0D0D0D',
-              'dark-bg-end': '#1A1A1A',
-              'dark-card': '#1f2937', // e.g., cool gray 800
+              'bg-dark': '#050505',
+              'bg-card': '#121212',
+              'primary': '#7F00FF', // Electric Violet
+              'primary-light': '#9D4DFF',
+              'accent': '#00F0FF', // Cyan Neon
+              'secondary': '#FFD700', // Gold
+              'success': '#00E676',
+              'glass': 'rgba(255, 255, 255, 0.05)',
             },
             fontFamily: {
-              sans: ['Poppins', 'sans-serif'],
+              sans: ['Inter', 'sans-serif'],
+              display: ['Space Grotesk', 'sans-serif'],
             },
             boxShadow: {
-              'glow-accent': '0 0 15px 5px rgba(191, 64, 191, 0.4)',
+              'glow-primary': '0 0 20px -5px rgba(127, 0, 255, 0.6)',
+              'glow-accent': '0 0 20px -5px rgba(0, 240, 255, 0.6)',
+              'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+            },
+            animation: {
+              'blob': 'blob 10s infinite',
+              'fade-in': 'fadeIn 0.6s ease-out forwards',
+              'slide-up': 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+              blob: {
+                '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                '100%': { transform: 'translate(0px, 0px) scale(1)' },
+              },
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              slideUp: {
+                '0%': { opacity: '0', transform: 'translateY(40px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              }
+            },
+            backdropBlur: {
+              'xs': '2px',
             }
           }
         }
@@ -50,12 +80,13 @@
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0",
     "vite": "https://aistudiocdn.com/vite@^7.2.2",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.0",
-    "vite-plugin-pwa": "https://aistudiocdn.com/vite-plugin-pwa@^1.1.0"
+    "vite-plugin-pwa": "https://aistudiocdn.com/vite-plugin-pwa@^1.1.0",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
   }
 }
 </script>
 </head>
-  <body>
+  <body class="bg-bg-dark text-gray-100 antialiased overflow-hidden selection:bg-primary selection:text-white">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

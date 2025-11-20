@@ -2,11 +2,10 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UploadedImage } from '../types';
 
 // ICONS
-const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-6 w-6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>;
-const CameraIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-6 w-6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>;
-// FIX: Corrected syntax error in viewBox attribute
+const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-6 w-6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>;
+const CameraIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-6 w-6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>;
 const VideoIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-6 w-6"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>;
-const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 const PlayIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3l14 9-14 9V3z"></path></svg>;
 
 
@@ -47,7 +46,7 @@ const extractFramesFromVideo = (videoFile: File, frameCount: number): Promise<{ 
         timeoutId = window.setTimeout(() => {
             cleanup();
             reject(new Error("Le traitement de la vidéo a expiré (20s)."));
-        }, 20000);
+        }, 2022);
 
         video.onerror = () => {
             cleanup();
@@ -307,7 +306,7 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const hasVideo = mediaItems.some(item => item.type === 'video');
+  const hasVideo = mediaItems.some((item: MediaItem) => item.type === 'video');
   const canUploadImage = !hasVideo && mediaItems.length < 3;
   const canUploadVideo = mediaItems.length === 0;
 
@@ -316,7 +315,8 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
     if (files.length === 0) return;
     setUploadError('');
 
-    const file = files[0]; // Process one file at a time to simplify logic
+    // Fix: Explicitly typing file as File to avoid unknown type errors
+    const file = files[0] as File; 
     const fileType = file.type.split('/')[0];
 
     if (fileType === 'image' && canUploadImage) {
@@ -358,16 +358,16 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
     try {
         let finalImages: UploadedImage[] = [];
         if (hasVideo) {
-            const videoItem = mediaItems.find(item => item.type === 'video');
+            const videoItem = mediaItems.find((item: MediaItem) => item.type === 'video');
             if(videoItem) {
                 const frames = await extractFramesFromVideo(videoItem.file, 5);
-                finalImages = frames.map(frame => ({
+                finalImages = frames.map((frame) => ({
                     ...frame,
                     previewUrl: URL.createObjectURL(frame.file)
                 }));
             }
         } else {
-            const imagePromises = mediaItems.map(async (item) => {
+            const imagePromises = mediaItems.map(async (item: MediaItem) => {
                 const base64 = await fileToBase64(item.file);
                 return { file: item.file, base64, previewUrl: item.previewUrl };
             });
@@ -423,7 +423,7 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
           <div className="w-full">
             <h3 className="text-xl font-semibold text-accent mb-4">Média téléversé :</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-              {mediaItems.map((media, index) => (
+              {mediaItems.map((media: MediaItem, index: number) => (
                 <div key={index} className="relative aspect-square bg-dark-card rounded-lg overflow-hidden shadow-md">
                   {media.type === 'image' ? (
                     <img src={media.previewUrl} alt={`Aperçu ${index + 1}`} className="w-full h-full object-cover" />
@@ -442,7 +442,7 @@ const UploadProduit: React.FC<{onUploadConfirmed: (images: UploadedImage[]) => v
               ))}
             </div>
              <button onClick={handleConfirm} disabled={isProcessing} className="w-full bg-secondary text-black font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:bg-yellow-400 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-500 disabled:cursor-not-allowed">
-                {isProcessing ? "Traitement en cours..." : "Analyser le produit"}
+                {isProcessing ? "Traitement en cours..." : "Confirmer et continuer"}
             </button>
           </div>
         )}

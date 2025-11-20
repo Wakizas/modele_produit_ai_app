@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ModelOptions, UploadedImage } from '../types';
 
 interface SelectModeleProps {
@@ -11,353 +11,467 @@ interface SelectModeleProps {
   faceImage: UploadedImage | null;
   setFaceImage: (image: UploadedImage | null) => void;
   onRetry: () => void;
+  isRemixMode?: boolean;
+  onCancelRemix?: () => void;
 }
 
-interface OptionProps<T> {
-  label: string;
-  options: { value: T; label: string }[];
-  selected: T;
-  onChange: (value: T) => void;
-}
+// Composant utilitaire pour les sections pliables ou groupées
+const SectionTitle = ({ children }: { children?: React.ReactNode }) => (
+    <div className="flex items-center gap-3 mb-6 mt-8 first:mt-0">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+        <h3 className="text-accent text-sm font-bold uppercase tracking-widest whitespace-nowrap">{children}</h3>
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+    </div>
+);
 
-const OptionSelector = <T extends string>({ label, options, selected, onChange }: OptionProps<T>) => (
-  <div className="mb-6">
-    <label className="block text-lg font-semibold text-accent mb-2">{label}</label>
+const PillSelector = ({ label, options, value, onChange, helpText, disabled }: any) => (
+  <div className={`mb-6 transition-opacity duration-300 ${disabled ? 'opacity-40 pointer-events-none grayscale' : 'opacity-100'}`}>
+    <div className="flex justify-between items-baseline mb-3 ml-1">
+        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">{label}</label>
+        {helpText && <span className="text-[10px] text-gray-500 italic">{helpText}</span>}
+    </div>
     <div className="flex flex-wrap gap-2">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          onClick={() => onChange(option.value)}
-          className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border-2 transition-all text-sm font-medium
-            ${selected === option.value 
-              ? 'bg-primary text-white border-primary' 
-              : 'bg-gray-700 text-gray-200 border-gray-600 hover:border-accent hover:text-white'
-            }`}
-        >
-          {option.label}
-        </button>
-      ))}
+      {options.map((opt: any) => {
+         const isActive = value === opt.value;
+         return (
+            <button
+              key={opt.value}
+              onClick={() => !disabled && onChange(opt.value)}
+              disabled={disabled}
+              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 border relative overflow-hidden group ${
+                isActive 
+                  ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)] transform scale-105' 
+                  : 'bg-white/5 text-gray-400 border-white/5 hover:border-white/20 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <span className="relative z-10">{opt.label}</span>
+              {isActive && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-50"></div>}
+            </button>
+         );
+      })}
     </div>
   </div>
 );
 
-// ICONS
-const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-5 w-5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>;
-const CameraIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-5 w-5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>;
-const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+const SelectModele: React.FC<SelectModeleProps> = ({ 
+    modelOptions, 
+    setModelOptions, 
+    onGenerate, 
+    productImagePreviews, 
+    isGenerating, 
+    faceImage, 
+    setFaceImage, 
+    error,
+    isRemixMode = false,
+    onCancelRemix
+}) => {
+  const handleChange = (k: keyof ModelOptions, v: any) => setModelOptions(p => ({ ...p, [k]: v }));
 
-// Camera Modal Component (Adapted from UploadProduit.tsx)
-const CameraModal: React.FC<{onClose: () => void, onCapture: (img: UploadedImage) => void}> = ({onClose, onCapture}) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const streamRef = useRef<MediaStream | null>(null);
-    const [error, setError] = useState('');
+  // Logique pour adapter les tranches d'âge selon le type de modèle (Adulte vs Enfant)
+  const [category, setCategory] = useState<'adulte' | 'enfant' | 'bebe'>('adulte');
 
-    useEffect(() => {
-        const startCamera = async () => {
-            if (!navigator.mediaDevices?.getUserMedia) {
-                setError("La fonctionnalité caméra n'est pas supportée par votre navigateur ou votre connexion n'est pas sécurisée (HTTPS).");
-                return;
-            }
-            try {
-                // Use 'user' facingMode for selfies
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                streamRef.current = stream;
-                if(videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                }
-            } catch (err) {
-                console.error("Error accessing camera:", err);
-                setError("Impossible d'accéder à la caméra. Vérifiez les autorisations dans votre navigateur.");
-            }
-        };
-        startCamera();
+  // Effet pour réinitialiser les valeurs par défaut lors du changement de catégorie majeure
+  useEffect(() => {
+      // On ne change pas les options si on est en mode remix (elles sont fixées par la communauté)
+      if (isRemixMode) return; 
 
-        return () => {
-            if(streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-            }
-        };
-    }, []);
+      if (category === 'enfant') {
+          if (!modelOptions.sexe.includes('Garçon') && !modelOptions.sexe.includes('Fille')) {
+             handleChange('sexe', 'Garçon');
+          }
+          handleChange('age', '6-9 ans');
+          handleChange('morphologie', 'Standard');
+      } else if (category === 'bebe') {
+          handleChange('sexe', 'Bébé');
+          handleChange('age', '6-12 mois');
+          handleChange('morphologie', 'Potelé');
+      } else {
+          // Adulte
+          if (!modelOptions.sexe.includes('Femme') && !modelOptions.sexe.includes('Homme')) {
+             handleChange('sexe', 'Femme');
+          }
+          handleChange('age', '25-34 ans');
+          handleChange('morphologie', 'Standard');
+      }
+  }, [category, isRemixMode]);
 
-    const handleCapture = () => {
-        if (videoRef.current && canvasRef.current) {
-            const canvas = canvasRef.current;
-            const video = videoRef.current;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            context?.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            const dataUrl = canvas.toDataURL('image/jpeg');
-            const base64Data = dataUrl.split(',')[1];
-            const file = new File([dataUrl], `face-capture-${Date.now()}.jpg`, {type: 'image/jpeg'});
-            
-            onCapture({
-                file: file,
-                base64: base64Data,
-                previewUrl: dataUrl,
-            });
-            onClose();
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-dark-card rounded-xl shadow-lg p-6 max-w-lg w-full" onClick={e => e.stopPropagation()}>
-                <h3 className="text-xl font-bold text-white mb-4">Prendre une photo</h3>
-                {error ? <p className="text-red-400">{error}</p> : (
-                <div className="relative">
-                    <video ref={videoRef} autoPlay playsInline className="w-full rounded-lg" style={{transform: 'scaleX(-1)'}} />
-                    <canvas ref={canvasRef} className="hidden" />
-                </div>
-                )}
-                <div className="flex justify-end gap-4 mt-4">
-                    <button onClick={onClose} className="bg-gray-700 text-gray-200 font-bold py-2 px-4 rounded-xl hover:bg-gray-600 transition-colors">Annuler</button>
-                    <button onClick={handleCapture} disabled={!!error} className="bg-primary text-white font-bold py-2 px-4 rounded-xl hover:bg-accent transition-colors disabled:bg-gray-600">Capturer</button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-
-const FaceUploader: React.FC<{ faceImage: UploadedImage | null; setFaceImage: (image: UploadedImage | null) => void; }> = ({ faceImage, setFaceImage }) => {
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [error, setError] = useState('');
-    const [isCameraOpen, setIsCameraOpen] = useState(false);
-
-    const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        setError('');
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-            setError("Format non supporté. Utilisez JPG, PNG ou WEBP.");
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = () => {
-            const base64String = reader.result as string;
-            const base64Data = base64String.split(',')[1];
-            setFaceImage({ file, base64: base64Data, previewUrl: URL.createObjectURL(file) });
-        };
-        reader.onerror = () => {
-            setError("Erreur lors de la lecture de l'image.");
-        };
-        reader.readAsDataURL(file);
-        if(fileInputRef.current) fileInputRef.current.value = '';
-    }, [setFaceImage]);
-
-    if (faceImage) {
-        return (
-            <div className="text-center">
-                 <p className="block text-lg font-semibold text-accent mb-2">Votre visage</p>
-                <div className="relative inline-block">
-                    <img src={faceImage.previewUrl} alt="Aperçu du visage" className="w-48 h-48 object-cover rounded-full shadow-lg mx-auto" />
-                    <button 
-                      onClick={() => setFaceImage(null)} 
-                      aria-label="Supprimer la photo du visage"
-                      className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1.5 hover:bg-red-500 transition-colors">
-                        <CloseIcon />
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="text-center">
-            {isCameraOpen && <CameraModal onClose={() => setIsCameraOpen(false)} onCapture={setFaceImage} />}
-            <p className="block text-lg font-semibold text-accent mb-2">Téléversez votre visage</p>
-            <p className="text-gray-400 mb-4 text-sm max-w-xs mx-auto">Pour un résultat optimal, utilisez une photo bien éclairée, de face, sans lunettes de soleil.</p>
-            <input type="file" accept="image/png, image/jpeg, image/webp" onChange={handleFileChange} className="hidden" ref={fileInputRef} />
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <button onClick={() => fileInputRef.current?.click()} className="bg-primary text-white font-bold py-2 px-4 rounded-xl inline-flex items-center justify-center transition-all hover:bg-accent">
-                    <UploadIcon /> Choisir un fichier
-                </button>
-                <button onClick={() => setIsCameraOpen(true)} className="bg-secondary text-black font-bold py-2 px-4 rounded-xl inline-flex items-center justify-center transition-all hover:bg-yellow-400">
-                    <CameraIcon /> Prendre une photo
-                </button>
-            </div>
-            {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
-        </div>
-    );
-};
-
-const morphologiesFemme = [
-  { value: 'mince', label: 'Mince' },
-  { value: 'standard', label: 'Standard' },
-  { value: 'athlétique', label: 'Athlétique' },
-  { value: 'enrobée', label: 'Pulpeuse / Enrobée' },
-  { value: 'grande et élancée', label: 'Grande et élancée' },
-  { value: 'petite', label: 'Petite' },
-];
-
-const morphologiesHomme = [
-  { value: 'mince', label: 'Mince' },
-  { value: 'standard', label: 'Standard' },
-  { value: 'athlétique', label: 'Musclé / Athlétique' },
-  { value: 'robuste', label: 'Robuste / Trapu' },
-  { value: 'grand et fin', label: 'Grand et fin' },
-];
-
-const styles = [
-  { value: 'casual', label: 'Casual' },
-  { value: 'professionnel', label: 'Professionnel' },
-  { value: 'chic', label: 'Chic' },
-  { value: 'streetwear', label: 'Streetwear' },
-  { value: 'sportif', label: 'Sportif' },
-  { value: 'haute couture', label: 'Haute Couture' },
-  { value: 'bohème', label: 'Bohème' },
-  { value: 'minimaliste', label: 'Minimaliste' },
-  { value: 'vintage', label: 'Vintage' },
-  { value: 'traditionnel', label: 'Traditionnel' },
-];
-
-const ambiances = [
-    { value: 'Studio sobre (éclairage neutre)', label: 'Studio sobre' },
-    { value: 'Lumière dorée du soir (extérieur)', label: 'Lumière dorée' },
-    { value: 'Nuit urbaine néon', label: 'Nuit urbaine' },
-    { value: 'Plage tropicale ensoleillée', label: 'Plage tropicale' },
-    { value: 'Intérieur minimaliste (lumière douce)', label: 'Intérieur minimaliste' },
-    { value: 'Rooftop avec vue sur la ville au coucher du soleil', label: 'Rooftop Coucher de Soleil' },
-    { value: 'Forêt luxuriante avec rayons de soleil', label: 'Forêt Enchantée' },
-    { value: 'Rue pavée de style parisien', label: 'Rue Parisienne' },
-    { value: 'Mur de graffitis colorés et artistiques', label: 'Art Urbain' },
-    { value: 'Bibliothèque ancienne avec étagères en bois', label: 'Bibliothèque Ancienne' },
-    { value: 'Loft industriel avec murs en briques', label: 'Loft Industriel' },
-    { value: 'Paysage désertique au lever du soleil', label: 'Désert Solaire' },
-    { value: 'Jardin botanique exotique', label: 'Jardin Exotique' },
-    { value: 'Intérieur d\'un riad marocain avec zelliges', label: 'Riad Marocain' },
-    { value: 'Fond de couleur vive et unie (bleu électrique)', label: 'Fond Uni Vibrant' },
-];
-
-const tonsMarketing = [
-    { value: 'Professionnel', label: 'Professionnel' },
-    { value: 'Luxueux', label: 'Luxueux' },
-    { value: 'Énergique et jeune', label: 'Énergique' },
-    { value: 'Inspirant', label: 'Inspirant' },
-];
-
-const teintesPeau = [
-    {value: 'noir', label: 'Noir'},
-    {value: 'métis', label: 'Métis'},
-    {value: 'clair', label: 'Clair'},
-    {value: 'asiatique', label: 'Asiatique'},
-    {value: 'blanc', label: 'Blanc'},
-];
-
-
-const SelectModele: React.FC<SelectModeleProps> = ({ modelOptions, setModelOptions, onGenerate, productImagePreviews, error, isGenerating, faceImage, setFaceImage, onRetry }) => {
-  const handleOptionChange = <K extends keyof ModelOptions>(key: K, value: ModelOptions[K]) => {
-    setModelOptions((prev) => ({ ...prev, [key]: value }));
+  const getAgeOptions = () => {
+      if (category === 'bebe') return [
+          {value: '0-6 mois', label: 'Nouveau-né (0-6 mois)'},
+          {value: '6-12 mois', label: 'Bébé (6-12 mois)'},
+          {value: '12-24 mois', label: 'Tout-petit (1-2 ans)'}
+      ];
+      if (category === 'enfant') return [
+          {value: '3-5 ans', label: 'Petite Enfance (3-5 ans)'},
+          {value: '6-9 ans', label: 'Enfant (6-9 ans)'},
+          {value: '10-14 ans', label: 'Pré-ado / Ado (10-14 ans)'}
+      ];
+      return [
+          {value: '18-24 ans', label: 'Gen Z (18-24 ans)'},
+          {value: '25-34 ans', label: 'Millennial (25-34 ans)'},
+          {value: '35-44 ans', label: 'Adulte (35-44 ans)'},
+          {value: '45-55 ans', label: 'Mature (45-55 ans)'},
+          {value: 'Senior', label: 'Senior (60+ ans)'}
+      ];
   };
 
-   const handleUseMyFaceToggle = () => {
-      const isEnabled = !modelOptions.useMyFace;
-      handleOptionChange('useMyFace', isEnabled);
-      if (!isEnabled) {
-          setFaceImage(null); // Clear face image when disabling
-      }
-  }
+  const getGenderOptions = () => {
+      if (category === 'bebe') return [
+          {value: 'Bébé', label: 'Mixte / Neutre'}, 
+          {value: 'Bébé Garçon', label: 'Garçon'}, 
+          {value: 'Bébé Fille', label: 'Fille'}
+      ];
+      if (category === 'enfant') return [
+          {value: 'Garçon', label: 'Garçon'}, 
+          {value: 'Fille', label: 'Fille'}
+      ];
+      return [
+          {value: 'Femme', label: 'Femme'}, 
+          {value: 'Homme', label: 'Homme'}
+      ];
+  };
 
-  const isRetryableError = error && (error.includes('surchargé') || error.includes('échoué'));
-  
-  const currentMorphologies = modelOptions.sexe === 'Femme' ? morphologiesFemme : morphologiesHomme;
+  const getMorphologyOptions = () => {
+      // BÉBÉ
+      if (category === 'bebe') return [
+          {value: 'Standard', label: 'Standard'},
+          {value: 'Potelé', label: 'Potelé (Sain)'},
+          {value: 'Fin', label: 'Fin / Petit'}
+      ];
+      
+      // ENFANT
+      if (category === 'enfant') return [
+          {value: 'Standard', label: 'Standard'},
+          {value: 'Mince', label: 'Mince / Élancé'},
+          {value: 'Solide', label: 'Solide / Costaud'}
+      ];
 
-  useEffect(() => {
-    // Si la morphologie sélectionnée n'existe pas dans la nouvelle liste (après un changement de sexe),
-    // on la réinitialise à 'standard'.
-    const currentMorphologyIsValid = currentMorphologies.some(m => m.value === modelOptions.morphologie);
-    if (!currentMorphologyIsValid) {
-        handleOptionChange('morphologie', 'standard');
-    }
-  }, [modelOptions.sexe]);
+      // ADULTE - HOMME
+      if (modelOptions.sexe === 'Homme') return [
+          {value: 'athlétique', label: 'Athlétique (Dessiné)'},
+          {value: 'musclé', label: 'Musclé (Bodybuilder)'},
+          {value: 'standard', label: 'Standard (Équilibré)'},
+          {value: 'mince', label: 'Mince (Slim)'},
+          {value: 'carrure large', label: 'Carrure Large (Stocky)'},
+          {value: 'élancé', label: 'Grand & Élancé'}
+      ];
 
+      // ADULTE - FEMME (Défaut)
+      return [
+          {value: 'mannequin', label: 'Mannequin (Très mince)'},
+          {value: 'mince', label: 'Mince (Slim)'},
+          {value: 'standard', label: 'Standard (Naturelle)'},
+          {value: 'athlétique', label: 'Athlétique (Fit)'},
+          {value: 'curvy', label: 'Curvy (Sablier)'},
+          {value: 'voluptueuse', label: 'Voluptueuse (Plus Size)'},
+          {value: 'petite', label: 'Petite & Menu'},
+          {value: 'élancée', label: 'Grande & Élancée'}
+      ];
+  };
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <h2 className="text-3xl font-bold text-white mb-2 text-center">Étape 2 : Créez votre modèle virtuel</h2>
-      <p className="text-gray-400 mb-6 text-center">Définissez les caractéristiques du modèle qui portera votre produit.</p>
-       {error && (
-            <div className="text-red-400 text-center mb-4 bg-red-900/30 p-3 rounded-lg">
-                <p>{error}</p>
-                {isRetryableError && (
-                    <button
-                        onClick={onRetry}
-                        className="mt-3 bg-secondary text-black font-bold py-2 px-5 rounded-lg text-sm hover:bg-yellow-400 transition-colors"
-                    >
-                        Réessayer la génération
-                    </button>
-                )}
-            </div>
-        )}
-      
-      <div className="flex flex-col md:flex-row gap-8 lg:gap-12 items-start">
-        
-        {/* Options Panel */}
-        <div className="w-full md:flex-1 bg-dark-card/60 p-4 sm:p-6 rounded-2xl shadow-lg">
-           <div className="mb-6 bg-black/20 p-4 rounded-lg border border-accent/20">
-            <label htmlFor="use-my-face-toggle" className="flex items-center justify-between cursor-pointer">
-                <span className="text-lg font-semibold text-white">Utiliser mon visage</span>
-                <div className="relative">
-                    <input id="use-my-face-toggle" type="checkbox" className="sr-only" checked={modelOptions.useMyFace} onChange={handleUseMyFaceToggle} />
-                    <div className="block bg-gray-600 w-14 h-8 rounded-full"></div>
-                    <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${modelOptions.useMyFace ? 'transform translate-x-6 bg-accent' : ''}`}></div>
-                </div>
-            </label>
-            {modelOptions.useMyFace && (
-                <p className="text-gray-400 mt-2 text-sm">
-                    L'IA va générer un modèle avec votre visage. Certaines options de personnalisation seront désactivées.
-                </p>
-            )}
-          </div>
+    <div className="max-w-7xl mx-auto animate-slide-up pb-20">
+       <div className="flex flex-col lg:flex-row gap-8 xl:gap-12">
           
-          {modelOptions.useMyFace ? (
-            <div className="mb-6">
-                <FaceUploader faceImage={faceImage} setFaceImage={setFaceImage} />
-            </div>
-            ) : (
-            <>
-                <OptionSelector label="Sexe" options={[{value: 'Femme', label: 'Femme'}, {value: 'Homme', label: 'Homme'}]} selected={modelOptions.sexe} onChange={(v) => handleOptionChange('sexe', v)} />
-                <OptionSelector label="Teinte de peau" options={teintesPeau} selected={modelOptions.typeDePeau} onChange={(v) => handleOptionChange('typeDePeau', v)} />
-                <OptionSelector label="Origine ethnique" options={['Afrique de l’Ouest', 'Afrique du Nord', 'Afrique Centrale', 'Afrique de l’Est', 'Afrique Australe', 'Afro-américain', 'Afro-caribéen'].map(v => ({value: v, label: v}))} selected={modelOptions.origineEthnique} onChange={(v) => handleOptionChange('origineEthnique', v)} />
-                <OptionSelector label="Âge" options={['20-25 ans', '25-35 ans', '35-45 ans', '45-55 ans', '55-65 ans', '65+ ans'].map(v => ({value: v, label: v}))} selected={modelOptions.age} onChange={(v) => handleOptionChange('age', v)} />
-                <OptionSelector label="Expression" options={['neutre', 'sourire léger', 'confiant', 'sérieux', 'joyeux'].map(v => ({value: v, label: v}))} selected={modelOptions.expression} onChange={(v) => handleOptionChange('expression', v)} />
-            </>
-          )}
+          {/* Left: Configuration */}
+          <div className="flex-1">
+             <div className="mb-8">
+                 <h2 className="text-4xl font-display font-bold text-white mb-2">Direction Artistique</h2>
+                 <p className="text-gray-400">Définissez précisément l'avatar qui incarnera votre marque.</p>
+             </div>
 
-          <OptionSelector label="Morphologie" options={currentMorphologies} selected={modelOptions.morphologie} onChange={(v) => handleOptionChange('morphologie', v)} />
-          <OptionSelector label="Style vestimentaire" options={styles} selected={modelOptions.style} onChange={(v) => handleOptionChange('style', v)} />
-          <OptionSelector label="Ambiance et Lumière" options={ambiances} selected={modelOptions.ambiance} onChange={(v) => handleOptionChange('ambiance', v)} />
-          <OptionSelector label="Ton Marketing" options={tonsMarketing} selected={modelOptions.tonMarketing} onChange={(v) => handleOptionChange('tonMarketing', v)} />
-        </div>
+             {isRemixMode && (
+                 <div className="mb-6 p-4 bg-accent/10 border border-accent/30 rounded-2xl flex items-center justify-between animate-pulse-slow">
+                     <div className="flex items-center gap-3">
+                         <span className="text-xl">🔒</span>
+                         <div>
+                             <h4 className="text-accent font-bold text-sm">Mode Remix Actif</h4>
+                             <p className="text-gray-400 text-xs">Les paramètres de style sont verrouillés pour reproduire le look communautaire.</p>
+                         </div>
+                     </div>
+                     <button 
+                        onClick={onCancelRemix}
+                        className="px-4 py-2 text-xs bg-black/40 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-colors"
+                     >
+                         Déverrouiller / Personnaliser
+                     </button>
+                 </div>
+             )}
 
-        {/* Preview and Action Panel */}
-        <div className="w-full md:w-1/3 space-y-6 md:sticky top-8">
-          {productImagePreviews.length > 0 && (
-            <div className="w-full">
-                <p className="text-lg font-semibold text-accent mb-2 text-center">
-                    Votre Produit
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-2 bg-dark-card/60 p-2 rounded-xl">
-                 {productImagePreviews.map((preview, index) => (
-                    <img key={index} src={preview} alt={`Aperçu produit ${index+1}`} className="w-full rounded-md shadow-lg object-cover aspect-square"/>
-                ))}
+             <div className="bg-bg-card/80 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+                {/* Background Glow */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none"></div>
+
+                {/* CATEGORY SELECTION */}
+                <div className={`grid grid-cols-3 gap-3 mb-10 p-1.5 bg-black/40 rounded-xl border border-white/5 ${isRemixMode ? 'opacity-50 pointer-events-none' : ''}`}>
+                    {(['adulte', 'enfant', 'bebe'] as const).map((cat) => (
+                        <button
+                            key={cat}
+                            onClick={() => setCategory(cat)}
+                            disabled={isRemixMode}
+                            className={`py-4 px-4 rounded-lg font-bold uppercase text-xs tracking-wider transition-all duration-300 flex items-center justify-center gap-2 ${
+                                category === cat 
+                                ? 'bg-white/10 text-white shadow-lg border border-white/10' 
+                                : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                            }`}
+                        >
+                            {cat === 'adulte' && <span className="text-lg">👤</span>}
+                            {cat === 'enfant' && <span className="text-lg">🧒</span>}
+                            {cat === 'bebe' && <span className="text-lg">👶</span>}
+                            {cat === 'bebe' ? 'Bébé' : cat}
+                        </button>
+                    ))}
                 </div>
-            </div>
-          )}
-          <button
-            onClick={onGenerate}
-            disabled={isGenerating || (modelOptions.useMyFace && !faceImage)}
-            className="w-full bg-secondary text-black font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:bg-yellow-400 transition-all duration-300 transform hover:scale-105 disabled:bg-gray-500 disabled:cursor-not-allowed"
-          >
-            {isGenerating ? 'Génération en cours...' : 'Générer les modèles ✨'}
-          </button>
-        </div>
-      </div>
+
+                {/* --- SECTION 1: PHYSIQUE --- */}
+                <SectionTitle>Caractéristiques du Modèle</SectionTitle>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                    <PillSelector 
+                        label="Genre / Type"
+                        options={getGenderOptions()}
+                        value={modelOptions.sexe}
+                        onChange={(v: string) => handleChange('sexe', v)}
+                        disabled={isRemixMode}
+                    />
+
+                    <PillSelector 
+                        label="Tranche d'âge"
+                        options={getAgeOptions()}
+                        value={modelOptions.age}
+                        onChange={(v: string) => handleChange('age', v)}
+                        disabled={isRemixMode}
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                    <PillSelector 
+                        label="Teint de peau"
+                        options={[
+                            {value: 'très clair', label: 'Porcelaine / Très Clair'},
+                            {value: 'clair', label: 'Clair / Beige'},
+                            {value: 'doré', label: 'Doré / Hâlé'},
+                            {value: 'olive', label: 'Mat / Olive'},
+                            {value: 'métisse', label: 'Métisse / Caramel'},
+                            {value: 'bronzé', label: 'Bronzé / Ambré'},
+                            {value: 'noir', label: 'Noir / Cacao'},
+                            {value: 'ébène', label: 'Ébène Profond'}
+                        ]}
+                        value={modelOptions.typeDePeau}
+                        onChange={(v: string) => handleChange('typeDePeau', v)}
+                        disabled={isRemixMode}
+                    />
+                    
+                    <PillSelector 
+                        label="Morphologie"
+                        options={getMorphologyOptions()}
+                        value={modelOptions.morphologie}
+                        onChange={(v: string) => handleChange('morphologie', v)}
+                        disabled={isRemixMode}
+                    />
+                </div>
+
+                {/* --- SECTION 2: ORIGINE & STYLE --- */}
+                <SectionTitle>Origine & Style</SectionTitle>
+
+                <PillSelector 
+                    label="Origine Ethnique Principale"
+                    options={[
+                        {value: 'Afrique de l’Ouest', label: 'Afrique de l’Ouest (Traits fins)'},
+                        {value: 'Afrique Centrale', label: 'Afrique Centrale (Bantou)'},
+                        {value: 'Afrique du Nord', label: 'Afrique du Nord (Maghreb)'},
+                        {value: 'Afrique de l’Est', label: 'Afrique de l’Est (Nilotique)'},
+                        {value: 'Afrique Australe', label: 'Afrique Australe'},
+                        {value: 'Afro-américain', label: 'Afro-américain'},
+                        {value: 'Afro-caribéen', label: 'Afro-caribéen / Îles'},
+                        {value: 'Métisse', label: 'Métisse Universel'},
+                        {value: 'Asiatique', label: 'Asiatique'},
+                        {value: 'Européen', label: 'Européen / Caucasien'},
+                        {value: 'Indien', label: 'Indien / Asie du Sud'},
+                        {value: 'Latino', label: 'Latino / Hispanique'}
+                    ]}
+                    value={modelOptions.origineEthnique}
+                    onChange={(v: string) => handleChange('origineEthnique', v)}
+                    disabled={isRemixMode}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                    <PillSelector 
+                        label="Expression Faciale"
+                        options={[
+                            {value: 'sourire radieux', label: 'Sourire Éclatant (Commercial)'},
+                            {value: 'sourire doux', label: 'Sourire Doux (Bienveillance)'},
+                            {value: 'neutre confiant', label: 'Neutre & Confiant (Luxe)'},
+                            {value: 'sérieux couture', label: 'Mode / Couture (Éditorial)'},
+                            {value: 'regard intense', label: 'Regard Intense (Séduction)'},
+                            {value: 'rire naturel', label: 'Rire / Joie (Lifestyle)'},
+                            {value: 'pensif', label: 'Pensif / Lointain'}
+                        ]}
+                        value={modelOptions.expression}
+                        onChange={(v: string) => handleChange('expression', v)}
+                        disabled={isRemixMode}
+                    />
+                    
+                    <PillSelector 
+                        label="Style Vestimentaire"
+                        helpText="(Complémentaire au produit)"
+                        options={[
+                            {value: 'minimaliste', label: 'Minimaliste / Épuré'},
+                            {value: 'streetwear', label: 'Streetwear / Urbain'},
+                            {value: 'chic élégant', label: 'Chic / Soirée / Gala'},
+                            {value: 'business', label: 'Business / Professionnel'},
+                            {value: 'casual', label: 'Casual / Décontracté'},
+                            {value: 'traditionnel moderne', label: 'Afro-Moderne / Fusion'},
+                            {value: 'bohème', label: 'Bohème / Artistique'},
+                            {value: 'sportif', label: 'Sportswear / Fitness'},
+                            {value: 'haute couture', label: 'Avant-Garde / Haute Couture'}
+                        ]}
+                        value={modelOptions.style}
+                        onChange={(v: string) => handleChange('style', v)}
+                        disabled={isRemixMode}
+                    />
+                </div>
+
+                {/* --- SECTION 3: AMBIANCE --- */}
+                <SectionTitle>Décor & Éclairage</SectionTitle>
+
+                <div className={`mb-6 transition-opacity duration-300 ${isRemixMode ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                         {[
+                            {value: 'Studio fond uni blanc', label: '⚪️ Studio Fond Blanc Pur (E-commerce)', type: 'studio'},
+                            {value: 'Studio fond gris doux', label: '🔘 Studio Fond Gris (Premium)', type: 'studio'},
+                            {value: 'Studio fond coloré pastel', label: '🎨 Studio Fond Pastel (Pop)', type: 'studio'},
+                            {value: 'Studio éclairage dramatique', label: '🔦 Studio Éclairage Dramatique (Mode)', type: 'studio'},
+                            {value: 'Intérieur luxe salon', label: '🛋 Intérieur Luxe / Salon Design', type: 'indoor'},
+                            {value: 'Intérieur minimaliste zen', label: '🪴 Intérieur Minimaliste / Zen', type: 'indoor'},
+                            {value: 'Intérieur loft industriel', label: '🧱 Loft Industriel / Briques', type: 'indoor'},
+                            {value: 'Lumière naturelle golden hour', label: '☀️ Extérieur Golden Hour (Sunset)', type: 'outdoor'},
+                            {value: 'Urbain moderne ville', label: '🏙 Ville Moderne / Rue Floue', type: 'outdoor'},
+                            {value: 'Nature tropicale plage', label: '🌴 Nature Tropicale / Plage', type: 'outdoor'},
+                            {value: 'Nature champêtre', label: '🌾 Nature Champêtre / Fleurs', type: 'outdoor'},
+                            {value: 'Abstrait néon futuriste', label: '🟣 Abstrait Néon / Cyberpunk', type: 'artistic'},
+                         ].map((opt) => (
+                            <button
+                                key={opt.value}
+                                onClick={() => handleChange('ambiance', opt.value)}
+                                disabled={isRemixMode}
+                                className={`p-3 rounded-xl text-left text-sm transition-all duration-300 border flex items-center gap-3 ${
+                                    modelOptions.ambiance === opt.value
+                                    ? 'bg-gradient-to-r from-primary/20 to-accent/10 border-primary text-white shadow-glow-primary'
+                                    : 'bg-black/40 border-white/10 text-gray-400 hover:bg-white/5 hover:text-white'
+                                }`}
+                            >
+                                <span className="flex-1 font-medium">{opt.label}</span>
+                                {modelOptions.ambiance === opt.value && (
+                                    <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_5px_#00F0FF]"></div>
+                                )}
+                            </button>
+                         ))}
+                    </div>
+                </div>
+
+                {/* OPTION VISAGE PERSO */}
+                <div className="mt-10 pt-6 border-t border-white/10">
+                    <div className={`flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-white/5 to-transparent border border-white/5 hover:border-primary/30 transition-colors ${isRemixMode ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/20">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            </div>
+                            <div>
+                                <span className="text-white font-bold block text-base">Face Swap (Beta)</span>
+                                <span className="text-xs text-gray-400">Appliquer votre propre visage sur le mannequin généré</span>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => handleChange('useMyFace', !modelOptions.useMyFace)}
+                            disabled={isRemixMode}
+                            className={`w-14 h-8 rounded-full transition-colors relative ${modelOptions.useMyFace ? 'bg-primary shadow-glow-primary' : 'bg-gray-800'}`}
+                        >
+                            <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform shadow-md ${modelOptions.useMyFace ? 'translate-x-6' : ''}`}></div>
+                        </button>
+                    </div>
+                </div>
+             </div>
+          </div>
+
+          {/* Right: Preview & Action - Sticky */}
+          <div className="w-full lg:w-80 xl:w-96 flex flex-col gap-6">
+             <div className="sticky top-8 space-y-6">
+                
+                {/* Product Card */}
+                <div className="bg-bg-card border border-white/10 rounded-3xl p-5 shadow-xl">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-accent"></span>
+                        Produit Source
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                        {productImagePreviews.slice(0, 2).map((src, i) => (
+                            <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-white/5 bg-black/20">
+                                <img src={src} className="w-full h-full object-cover" />
+                            </div>
+                        ))}
+                         {productImagePreviews.length > 2 && (
+                             <div className="relative aspect-square rounded-xl overflow-hidden border border-white/5 bg-white/5 flex items-center justify-center">
+                                 <span className="text-gray-400 font-medium text-xs">+{productImagePreviews.length - 2}</span>
+                             </div>
+                         )}
+                    </div>
+                </div>
+                
+                {/* Action Card */}
+                <div className="bg-gradient-to-b from-bg-card to-black border border-white/10 rounded-3xl p-6 shadow-2xl">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6">Récapitulatif</h3>
+                    
+                    <div className="space-y-3 mb-8 text-sm">
+                        <div className="flex justify-between border-b border-white/5 pb-2">
+                            <span className="text-gray-400">Catégorie</span>
+                            <span className="text-white font-medium capitalize">{category}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-white/5 pb-2">
+                            <span className="text-gray-400">Origine</span>
+                            <span className="text-white font-medium truncate max-w-[150px]">{modelOptions.origineEthnique}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-white/5 pb-2">
+                            <span className="text-gray-400">Style</span>
+                            <span className="text-white font-medium truncate max-w-[150px]">{modelOptions.style}</span>
+                        </div>
+                    </div>
+
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-300 text-xs rounded-xl flex items-start gap-2">
+                            <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                            <span>{error}</span>
+                        </div>
+                    )}
+
+                    <button
+                        onClick={onGenerate}
+                        disabled={isGenerating}
+                        className="group w-full py-4 bg-white text-black font-bold rounded-xl shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:shadow-[0_0_35px_rgba(127,0,255,0.5)] transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none disabled:shadow-none relative overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-200/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                        {isGenerating ? (
+                            <span className="flex items-center justify-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-black rounded-full animate-bounce"></span>
+                                <span className="w-1.5 h-1.5 bg-black rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></span>
+                                <span className="w-1.5 h-1.5 bg-black rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
+                                <span className="ml-1">Création en cours...</span>
+                            </span>
+                        ) : (
+                            <span className="flex items-center justify-center gap-2">
+                                <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                                Lancer la Création
+                            </span>
+                        )}
+                    </button>
+                    <p className="text-[10px] text-center text-gray-600 mt-3">
+                        Studio optimisé pour un rendu commercial haute définition.
+                    </p>
+                </div>
+             </div>
+          </div>
+
+       </div>
     </div>
   );
 };

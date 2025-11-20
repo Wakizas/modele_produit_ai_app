@@ -1,12 +1,21 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { AppStep, ModelOptions, UploadedImage } from './types';
-import Accueil from './components/Accueil';
+import { AppStep, ModelOptions, UploadedImage, CommunityCreation } from './types';
+import Layout from './components/Layout';
+import Dashboard from './components/Dashboard';
 import UploadProduit from './components/UploadProduit';
 import SelectModele from './components/SelectModele';
 import Generation from './components/Generation';
 import Resultats from './components/Resultats';
-import Header from './components/Header';
+import Auth from './components/Auth';
+import UserProfile from './components/UserProfile';
+import AdminDashboard from './components/AdminDashboard';
+import Community from './components/Community';
 import { generateImagesAndCaption } from './services/geminiService';
+import { useAuth } from './contexts/AuthContext';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db } from './firebase';
+import Toast, { playNotificationSound } from './components/Toast';
+import Accueil from './components/Accueil';
 
 export default function MainApp() {
   const [step, setStep] = useState<AppStep>(AppStep.Accueil);
@@ -20,7 +29,7 @@ export default function MainApp() {
     style: 'chic',
     expression: 'sourire léger',
     origineEthnique: 'Afrique de l’Ouest',
-    ambiance: 'Studio sobre (éclairage neutre)',
+    ambiance: 'Studio fond uni blanc',
     tonMarketing: 'Professionnel',
     useMyFace: false,
   });
@@ -31,8 +40,33 @@ export default function MainApp() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const isGenerationCancelled = useRef(false);
+  
+  // State to track if we are in "Remix Mode" (community style applied)
+  const [isRemixMode, setIsRemixMode] = useState(false);
+  
+  // Toast State
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+  
+  const auth = useAuth();
 
-  const handleStart = useCallback(() => {
+  // --- Navigation Handlers ---
+
+  const handleNavigate = (newStep: AppStep) => {
+    if (!auth?.currentUser && newStep !== AppStep.Accueil && newStep !== AppStep.Auth) {
+        setStep(AppStep.Auth);
+        return;
+    }
+    setStep(newStep);
+  };
+
+  const handleAuthSuccess = useCallback(() => {
+      setStep(AppStep.Accueil); 
+  }, []);
+
+  const handleStartCreate = useCallback(() => {
+    setUploadedImages([]);
+    setGeneratedImages([]);
+    setIsRemixMode(false); // Reset remix mode for new creation
     setStep(AppStep.Upload);
   }, []);
 
@@ -42,43 +76,30 @@ export default function MainApp() {
     setError('');
   }, []);
 
-  const handleGoBack = useCallback(() => {
-    switch (step) {
-      case AppStep.Upload:
-        setStep(AppStep.Accueil);
-        break;
-      case AppStep.Select:
-        isGenerationCancelled.current = true;
-        setStep(AppStep.Upload);
-        if (error) setError('');
-        break;
-      case AppStep.Results:
-        setStep(AppStep.Select);
-        break;
-    }
-  }, [step, error]);
-
-  const handleCancelGeneration = useCallback(() => {
-    isGenerationCancelled.current = true;
-    setStep(AppStep.Select);
-    setIsGenerating(false);
-  }, []);
+  const saveToHistory = async (options: ModelOptions, imageUrls: string[]) => {
+      if (!auth?.currentUser) return;
+      try {
+          await addDoc(collection(db, "users", auth.currentUser.uid, "history"), {
+              style: options.style,
+              ambiance: options.ambiance,
+              timestamp: serverTimestamp(),
+              imageCount: imageUrls.length
+          });
+      } catch (e) {
+          console.error("Failed to save history stats:", e);
+      }
+  };
 
   const handleGenerate = useCallback(async () => {
-    if (uploadedImages.length === 0) {
-      setError('Vous devez d’abord téléverser une photo de votre produit.');
-      return;
-    }
-    if (modelOptions.useMyFace && !faceImage) {
-        setError("Veuillez téléverser une photo de votre visage pour utiliser cette option.");
-        return;
-    }
+    if (uploadedImages.length === 0) return;
+    
     isGenerationCancelled.current = false;
     setGenerationProgress(0);
     setPartiallyGeneratedImages(Array(5).fill(null));
     setStep(AppStep.Generate);
     setError('');
     setIsGenerating(true);
+    
     try {
       const onImageGenerated = (image: string, index: number) => {
         if (isGenerationCancelled.current) return;
@@ -91,89 +112,103 @@ export default function MainApp() {
         
       const { images, caption } = await generateImagesAndCaption(uploadedImages, modelOptions, "", setGenerationProgress, onImageGenerated, faceImage);
       
-      if (isGenerationCancelled.current) { return; }
-
-      // Handle the case where all image generations failed but the promise didn't reject (e.g., Promise.allSettled)
-      if (images.length === 0) {
-          throw new Error("ALL_GENERATIONS_FAILED");
-      }
+      if (isGenerationCancelled.current) return;
+      if (images.length === 0) throw new Error("ALL_GENERATIONS_FAILED");
 
       setGeneratedImages(images);
       setMarketingCaption(caption);
       
-      setTimeout(() => {
-        if (!isGenerationCancelled.current) {
-            setStep(AppStep.Results);
-        }
-      }, 1500);
-    } catch (err) {
-      if (isGenerationCancelled.current) { return; }
-      console.error('Generation failed:', err);
-      let finalError = 'Une erreur imprévue est survenue lors de la génération.';
-      if (err instanceof Error) {
-          switch (err.message) {
-              case 'SAFETY_BLOCK_GENERATION':
-                  finalError = "La génération a été bloquée. Essayez de modifier les options (style, ambiance) ou la description du produit.";
-                  break;
-              case 'API_KEY_INVALID':
-                  finalError = "Votre clé API n'est pas valide. Veuillez vérifier votre configuration.";
-                  break;
-              case 'BILLING_NOT_ENABLED':
-                  finalError = "La facturation n'est pas activée sur votre compte Google. Activez-la pour pouvoir générer des images.";
-                  break;
-              case 'QUOTA_EXCEEDED':
-              case 'MODEL_OVERLOADED':
-                  finalError = "Le service est actuellement surchargé par une forte demande. Veuillez réessayer dans quelques instants.";
-                  break;
-              case 'RETRY_FAILED_GENERATION':
-              case 'ALL_GENERATIONS_FAILED':
-                  finalError = "Toutes les tentatives de génération d'images ont échoué. Le service rencontre peut-être des difficultés. Veuillez réessayer.";
-                  break;
-              default:
-                  finalError = 'Une erreur inattendue est survenue. Veuillez réessayer.';
-                  break;
-          }
+      // Save stats & Add Gamification XP
+      saveToHistory(modelOptions, images);
+      if (auth?.addXp) {
+        const xpEarned = 50 + (images.length * 10); 
+        auth.addXp(xpEarned);
       }
-      setError(finalError);
+
+      // Notification
+      playNotificationSound();
+      setToast({ message: "Génération terminée avec succès !", type: "success" });
+      
+      setTimeout(() => {
+        if (!isGenerationCancelled.current) setStep(AppStep.Results);
+      }, 1000);
+    } catch (err: any) {
+      if (isGenerationCancelled.current) return;
+      console.error('Generation failed:', err);
+      setError(err.message || 'Erreur inconnue');
+      setToast({ message: "Erreur lors de la génération.", type: "error" });
       setStep(AppStep.Select);
     } finally {
-      if (!isGenerationCancelled.current) {
-          setIsGenerating(false);
-      }
+      if (!isGenerationCancelled.current) setIsGenerating(false);
     }
-  }, [uploadedImages, modelOptions, faceImage]);
-  
-  const retryGeneration = useCallback(() => {
-      setError('');
-      handleGenerate();
-  }, [handleGenerate]);
+  }, [uploadedImages, modelOptions, faceImage, auth?.currentUser]);
 
-  const resetState = () => {
-    isGenerationCancelled.current = false;
-    setUploadedImages([]);
-    setGeneratedImages([]);
-    setPartiallyGeneratedImages([]);
-    setFaceImage(null);
-    setModelOptions(prev => ({ ...prev, useMyFace: false }));
-    setMarketingCaption('');
-    setError('');
-    setGenerationProgress(0);
+  // Handle Remix from Community
+  const handleRemix = (creation: CommunityCreation) => {
+    setIsRemixMode(true);
+    setModelOptions(prev => ({
+        ...prev,
+        style: creation.style,
+        ambiance: creation.ambiance,
+        morphologie: creation.morphologie,
+    }));
+    setStep(AppStep.Upload);
+    setToast({ message: "Style 'AfroVibe' appliqué ! Importez votre produit.", type: "info" });
   };
 
-  const handleResetToHome = useCallback(() => {
-    resetState();
-    setStep(AppStep.Accueil);
-  }, []);
+  // Handle Publish to Community
+  const handlePublishToCommunity = async () => {
+    if (!auth?.currentUser) return;
 
-  const handleStartNew = useCallback(() => {
-    resetState();
-    setStep(AppStep.Upload);
-  }, []);
-  
+    try {
+      // Generate a random gradient based on style (Quota friendly - no image storage)
+      const colors = ['#7F00FF', '#00F0FF', '#FFD700', '#FF0080', '#00E676'];
+      const c1 = colors[Math.floor(Math.random() * colors.length)];
+      const c2 = colors[Math.floor(Math.random() * colors.length)];
+      const gradient = `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`;
+
+      const displayName = auth.userProfile?.displayName || auth.currentUser.email?.split('@')[0] || "Créateur";
+
+      await addDoc(collection(db, "community_creations"), {
+        style: modelOptions.style,
+        ambiance: modelOptions.ambiance,
+        morphologie: modelOptions.morphologie,
+        likes: 0,
+        author: displayName,
+        authorUid: auth.currentUser.uid,
+        gradient: gradient,
+        timestamp: serverTimestamp()
+      });
+
+      setToast({ message: "Votre style a été partagé avec la communauté !", type: "success" });
+      // Add Bonus XP for sharing
+      if (auth.addXp) auth.addXp(100);
+
+    } catch (e) {
+      console.error("Error publishing to community:", e);
+      setToast({ message: "Erreur lors de la publication.", type: "error" });
+    }
+  };
+
+  // --- Render Content ---
+
   const renderStep = () => {
+    if (!auth?.currentUser) {
+        if (step === AppStep.Auth) return <Auth onAuthSuccess={handleAuthSuccess} />;
+        return <Accueil onStart={() => setStep(AppStep.Auth)} />;
+    }
+
     switch (step) {
       case AppStep.Accueil:
-        return <Accueil onStart={handleStart} />;
+        return <Dashboard onStartNew={handleStartCreate} />;
+      case AppStep.Auth:
+        return <Dashboard onStartNew={handleStartCreate} />;
+      case AppStep.Profile:
+        return <UserProfile />;
+      case AppStep.Admin:
+        return <AdminDashboard />;
+      case AppStep.Community:
+        return <Community onRemix={handleRemix} />;
       case AppStep.Upload:
         return <UploadProduit onUploadConfirmed={handleUploadConfirmed} />;
       case AppStep.Select:
@@ -187,7 +222,9 @@ export default function MainApp() {
             isGenerating={isGenerating}
             faceImage={faceImage}
             setFaceImage={setFaceImage}
-            onRetry={retryGeneration}
+            onRetry={() => handleGenerate()}
+            isRemixMode={isRemixMode}
+            onCancelRemix={() => setIsRemixMode(false)}
           />
         );
       case AppStep.Generate:
@@ -197,24 +234,31 @@ export default function MainApp() {
           <Resultats
             images={generatedImages}
             caption={marketingCaption}
-            onStartNew={handleStartNew}
+            onStartNew={handleStartCreate}
+            modelOptions={modelOptions}
+            onPublish={handlePublishToCommunity}
           />
         );
       default:
-        return <Accueil onStart={handleStart} />;
+        return <Dashboard onStartNew={handleStartCreate} />;
     }
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-dark-bg-start to-dark-bg-end font-sans text-gray-200 antialiased">
-      <div className="container mx-auto px-4 py-6 sm:py-8">
-        <Header 
-            step={step} 
-            onGoBack={step === AppStep.Generate ? handleCancelGeneration : handleGoBack} 
-            onGoHome={handleResetToHome} 
-        />
-        <main>{renderStep()}</main>
-      </div>
-    </div>
+    <Layout 
+        currentStep={step} 
+        onNavigate={handleNavigate} 
+        isGenerating={isGenerating}
+        onReturnToGeneration={() => setStep(AppStep.Generate)}
+    >
+        {toast && (
+            <Toast 
+                message={toast.message} 
+                type={toast.type} 
+                onClose={() => setToast(null)} 
+            />
+        )}
+        {renderStep()}
+    </Layout>
   );
 }
